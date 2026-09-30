@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import java.util.ArrayList;
 import java.util.Comparator;

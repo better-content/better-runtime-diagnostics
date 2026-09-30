@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

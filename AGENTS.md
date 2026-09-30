@@ -2,9 +2,9 @@
 
 ## Project identity
 
-- Repository and artifact: `runtime-data-dumper`
-- Mod ID and resource namespace: `runtime_data_dumper`
-- Base package: `com.bettercontent.runtimedatadumper`
+- Repository and artifact: `better-runtime-diagnostics`
+- Mod ID and resource namespace: `better_runtime_diagnostics`
+- Base package: `com.bettercontent.betterruntimediagnostics`
 - Java: 17
 - Forge: 1.20.1-47.4.13
 

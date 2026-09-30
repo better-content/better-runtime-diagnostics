@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.Commands;

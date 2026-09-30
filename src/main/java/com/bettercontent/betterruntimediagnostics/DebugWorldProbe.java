@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;

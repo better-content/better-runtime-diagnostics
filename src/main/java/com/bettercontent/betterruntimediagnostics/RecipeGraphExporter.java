@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import com.google.gson.JsonParser;
 import com.google.gson.JsonObject;
@@ -39,10 +39,10 @@ final class RecipeGraphExporterTest {
     @Test
     void reflectionIsConfinedToExactNamedCachedAdapterBoundaries() throws Exception {
         Set<String> allowed = Set.of(
-                "com/bettercontent/runtimedatadumper/ReflectiveFabricBiomeModifierAdapter.java",
-                "com/bettercontent/runtimedatadumper/ReflectiveEmiReadinessAdapter.java",
-                "com/bettercontent/runtimedatadumper/ReflectivePneumaticRecipeAdapter.java",
-                "com/bettercontent/runtimedatadumper/ReflectiveRecipeFamilyAdapter.java");
+                "com/bettercontent/betterruntimediagnostics/ReflectiveFabricBiomeModifierAdapter.java",
+                "com/bettercontent/betterruntimediagnostics/ReflectiveEmiReadinessAdapter.java",
+                "com/bettercontent/betterruntimediagnostics/ReflectivePneumaticRecipeAdapter.java",
+                "com/bettercontent/betterruntimediagnostics/ReflectiveRecipeFamilyAdapter.java");
         String reflectionSyntax = "java.lang.reflect|\\.getDeclared(?:Field|Fields|Method|Methods|Constructor|Constructors)\\("
                 + "|\\.getMethod\\(|\\.getMethods\\(|trySetAccessible\\(|setAccessible\\(|\\.invoke\\(";
 
@@ -65,9 +65,9 @@ final class RecipeGraphExporterTest {
     @Test
     void recipeGraphV3UsesDeterministicQuantitativeFamilyAdapters() throws Exception {
         String exporter = Files.readString(Path.of(
-                "src/main/java/com/bettercontent/runtimedatadumper/RecipeGraphExporter.java"));
+                "src/main/java/com/bettercontent/betterruntimediagnostics/RecipeGraphExporter.java"));
         String adapter = Files.readString(Path.of(
-                "src/main/java/com/bettercontent/runtimedatadumper/ReflectiveRecipeFamilyAdapter.java"));
+                "src/main/java/com/bettercontent/betterruntimediagnostics/ReflectiveRecipeFamilyAdapter.java"));
         assertTrue(exporter.contains("bc.recipe_graph.v3"));
         assertTrue(exporter.contains("semantics.authoritativeOutputs()"));
         assertTrue(adapter.contains("getRollableResults"));
@@ -150,7 +150,7 @@ final class RecipeGraphExporterTest {
     @Test
     void worldDependentMapTradesAreDeferredBeforeTheirFactoriesRun() {
         assertTrue(RuntimeEvidenceExporter.isWorldDependentTradeListing(
-                "com.bettercontent.dimensiondrink.trade.DimensionalFontMapListing"));
+                "com.bettercontent.betterdimensionfonts.trade.DimensionalFontMapListing"));
         assertTrue(RuntimeEvidenceExporter.isWorldDependentTradeListing(
                 "net.minecraft.world.entity.npc.VillagerTrades$TreasureMapForEmeralds"));
         assertFalse(RuntimeEvidenceExporter.isWorldDependentTradeListing(

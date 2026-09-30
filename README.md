@@ -1,4 +1,4 @@
-# Runtime Data Dumper
+# Better Runtime Diagnostics
 
 Server-authoritative Forge 1.20.1 diagnostic mod. An operator can run
 `/runtimedata dump` to export the final live recipe manager, registries, tags,
@@ -81,9 +81,9 @@ Build, test, and stage the reobfuscated runtime JAR with:
 
 ## Canonical identity
 
-- Repository and release artifact: `runtime-data-dumper`
-- Mod ID and resource namespace: `runtime_data_dumper`
-- Java package: `com.bettercontent.runtimedatadumper`
+- Repository and release artifact: `better-runtime-diagnostics`
+- Mod ID and resource namespace: `better_runtime_diagnostics`
+- Java package: `com.bettercontent.betterruntimediagnostics`
 - Validation: `./gradlew build`
 
 This normalization is a clean break. Worlds, configuration files, and integrations created for earlier identities are not migrated or aliased.

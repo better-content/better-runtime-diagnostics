@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -281,9 +281,9 @@ final class ReflectiveRecipeFamilyAdapter {
                  "com.klikli_dev.occultism.crafting.recipe.BoundBookOfBindingRecipe",
                  "com.endertech.minecraft.mods.adpother.recipes.FilterChangeRecipe",
                  "com.aetherteam.aether.recipe.recipes.item.SwetBannerRecipe",
-                 "com.bettercontent.realisticores.compat.ExcavatedSeparationRecipe",
-                 "com.bettercontent.realisticores.compat.ExcavatedReassemblyRecipe",
-                 "com.bettercontent.proceduralbouquets.recipe.PottedBouquetRecipe",
+                 "com.bettercontent.betteroregeology.compat.ExcavatedSeparationRecipe",
+                 "com.bettercontent.betteroregeology.compat.ExcavatedReassemblyRecipe",
+                 "com.bettercontent.bettercraftablebouquets.recipe.PottedBouquetRecipe",
                  "com.github.alexthe666.rats.server.recipes.DemonRatSwitchRecipe",
                  "appeng.recipes.game.FacadeRecipe" -> true;
             default -> false;
@@ -1120,11 +1120,11 @@ final class ReflectiveRecipeFamilyAdapter {
                         "change_air_filter_material_preserving_state", "air_filter", "filter_material");
                 case "com.aetherteam.aether.recipe.recipes.item.SwetBannerRecipe" -> dynamicCrafting(
                         "apply_swet_pattern_to_banner", "banner", "swet_ball");
-                case "com.bettercontent.realisticores.compat.ExcavatedSeparationRecipe" -> dynamicCrafting(
+                case "com.bettercontent.betteroregeology.compat.ExcavatedSeparationRecipe" -> dynamicCrafting(
                         "separate_excavated_ore_into_chunk_and_substrate", "single_excavated_ore_variant");
-                case "com.bettercontent.realisticores.compat.ExcavatedReassemblyRecipe" -> dynamicCrafting(
+                case "com.bettercontent.betteroregeology.compat.ExcavatedReassemblyRecipe" -> dynamicCrafting(
                         "reassemble_excavated_ore_from_chunk_and_substrate", "matching_ore_chunk", "compatible_substrate");
-                case "com.bettercontent.proceduralbouquets.recipe.PottedBouquetRecipe" -> dynamicCrafting(
+                case "com.bettercontent.bettercraftablebouquets.recipe.PottedBouquetRecipe" -> dynamicCrafting(
                         "pot_bouquet_preserving_flower_composition", "configured_bouquet", "flower_pot");
                 case "appeng.recipes.game.FacadeRecipe" -> dynamicCrafting(
                         "encode_block_state_into_ae2_facade", "ae2_facade_blank", "facade_block_item");

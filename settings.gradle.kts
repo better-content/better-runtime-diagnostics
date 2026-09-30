@@ -5,4 +5,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "runtime-data-dumper"
+rootProject.name = "better-runtime-diagnostics"

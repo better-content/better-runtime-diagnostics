@@ -8,7 +8,7 @@ group = property("mod_group_id") as String
 version = property("mod_version") as String
 
 base {
-    archivesName.set("runtime-data-dumper")
+    archivesName.set("better-runtime-diagnostics")
 }
 
 java {

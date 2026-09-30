@@ -1,4 +1,4 @@
-package com.bettercontent.runtimedatadumper;
+package com.bettercontent.betterruntimediagnostics;
 
 record CombatDumpResult(boolean success, int sampledEntities, int excludedBosses, int errors, String output, String message) {
     static CombatDumpResult failure(String output, String message) {
