@@ -5,6 +5,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import java.util.UUID;
 
 /** Inert outside the full-pack Debug fixture. */
 @Mod.EventBusSubscriber(modid = RecipeGraphMod.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -38,20 +39,24 @@ public final class DebugWorldProbe {
         completed = true;
         var server = client.getSingleplayerServer();
         if (MODE.equals("save")) RecipeGraphMod.LOGGER.info("BC_DEBUG_EMI_READY");
-        RecipeGraphMod.LOGGER.info("BC_DEBUG_WORLD_LOADED mode={} game_time={}", MODE, server.overworld().getGameTime());
-        if (MODE.equals("save")) {
-            server.execute(() -> {
-                long gameTime = server.overworld().getGameTime();
+        server.execute(() -> {
+            final DebugWorldMarker marker = DebugWorldMarker.get(server.overworld());
+            if (MODE.equals("save")) marker.setValue(UUID.randomUUID().toString());
+            final String markerValue = marker.value();
+            long gameTime = server.overworld().getGameTime();
+            RecipeGraphMod.LOGGER.info("BC_DEBUG_WORLD_LOADED mode={} game_time={} marker={}",
+                    MODE, gameTime, markerValue);
+            if (MODE.equals("save")) {
                 client.execute(() -> {
                     // Normal world exit saves and flushes the integrated server. Forcing every
                     // chunk through saveEverything here can stall this full-pack fixture.
                     client.level.disconnect();
                     client.clearLevel();
-                    RecipeGraphMod.LOGGER.info("BC_DEBUG_WORLD_SAVED game_time={}", gameTime);
+                    RecipeGraphMod.LOGGER.info("BC_DEBUG_WORLD_SAVED game_time={} marker={}", gameTime, markerValue);
                     RecipeGraphMod.LOGGER.info("BC_DEBUG_WORLD_EXITED");
                 });
-            });
-        }
+            }
+        });
     }
 
 }
