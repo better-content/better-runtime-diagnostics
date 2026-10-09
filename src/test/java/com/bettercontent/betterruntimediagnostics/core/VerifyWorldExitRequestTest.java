@@ -17,7 +17,7 @@ class VerifyWorldExitRequestTest {
     private static final class Fixture implements AutoCloseable {
         final Path owner = Path.of("build/verify-exit-test", UUID.randomUUID().toString()).toAbsolutePath();
         final Path root = owner.resolve(RUN + "/singleplayer/fixture");
-        final Path world = root.resolve("client-6/saves/DebugWorld"), dir = root.resolve("journal-contract");
+        final Path world = root.resolve("client-6/saves/DebugWorld"), dir = root.resolve("world-lifecycle");
         final VerifyWorldExitRequest.Binding binding;
         Fixture() throws Exception {
             Files.createDirectories(world); Files.createDirectories(dir);
@@ -25,9 +25,8 @@ class VerifyWorldExitRequestTest {
         }
         Map<String,String> properties() {
             var p = new HashMap<String,String>();
-            p.put("bc.pack_test.world", "verify"); p.put("bc.journal.contract.singleplayer", "verify");
-            p.put("bc.journal.contract.run_id", RUN);
-            p.put("bc.journal.contract.player", "SmokeWorld"); p.put("bc.journal.contract.dir", dir.toString());
+            p.put("bc.pack_test.world", "verify");
+            p.put(PREFIX + "run_id", RUN); p.put(PREFIX + "player", "SmokeWorld");
             p.put(PREFIX + "nonce", binding.nonce().toString()); p.put(PREFIX + "player_uuid", PLAYER.toString());
             p.put(PREFIX + "fixture_root", root.toString()); p.put(PREFIX + "world_root", world.toString());
             p.put(PREFIX + "request_dir", dir.toString()); return p;
@@ -69,7 +68,7 @@ class VerifyWorldExitRequestTest {
                 var p = f.properties(); p.put(key, p.get(key) + "/..");
                 assertTrue(VerifyWorldExitRequest.configured(p::get).isEmpty());
             }
-            var p = f.properties(); p.put("bc.journal.contract.dir", f.root.toString());
+            var p = f.properties(); p.put(PREFIX + "request_dir", f.root.toString());
             assertTrue(VerifyWorldExitRequest.configured(p::get).isEmpty());
             Path otherWorld = f.root.resolve("client-6/saves/world"); Files.createDirectory(otherWorld);
             p = f.properties(); p.put(PREFIX + "world_root", otherWorld.toString());
@@ -135,6 +134,17 @@ class VerifyWorldExitRequestTest {
                 server, level, player, f.world, PLAYER, "OtherPlayer")).isPresent());
             assertTrue(gate.claim(loaded, true)); assertTrue(gate.started());
             assertFalse(gate.claim(loaded, true)); // simulated normal clearLevel ClientTick re-entry
+        }
+    }
+
+    @Test void removedStoragePropertiesCannotAuthorizeLifecycleExit() throws Exception {
+        try (var f = new Fixture()) {
+            var p = new HashMap<String,String>(); p.put("bc.pack_test.world", "verify");
+            p.put("bc.journal.contract.run_id", RUN); p.put("bc.journal.contract.player", "SmokeWorld");
+            p.put("bc.journal.contract.dir", f.dir.toString());
+            assertTrue(VerifyWorldExitRequest.configured(p::get).isEmpty());
+            String s=Files.readString(Path.of("src/main/java/com/bettercontent/betterruntimediagnostics/core/VerifyWorldExitRequest.java"));
+            assertFalse(s.contains("bc.journal.contract")); assertFalse(s.contains("bc.native.inventory"));
         }
     }
 

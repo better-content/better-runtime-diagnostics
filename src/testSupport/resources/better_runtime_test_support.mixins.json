@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.bettercontent.runtimetestsupport.diagnostics",
+  "plugin": "com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "better_runtime_test_support.refmap.json",
+  "mixins": ["NonfiniteRotationMixin", "UntamedSpeciesObservationMixin"],
+  "client": [],
+  "injectors": {"defaultRequire": 1}
+}

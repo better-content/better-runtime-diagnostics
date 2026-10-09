@@ -79,6 +79,12 @@ Build, test, and stage the reobfuscated runtime JAR with:
 ./gradlew build stageRuntimeJar
 ```
 
+## Disposable lifecycle and observation support
+
+`bc.pack_test.world=save|verify` enables the existing isolated integrated-world lifecycle probe. Verify exit is normally inert. Its explicit `bc.pack_test.verify_exit.*` interface carries `run_id`, `player`, canonical `player_uuid`, `nonce`, `fixture_root`, `world_root`, and `request_dir`. The last must be exactly the fresh fixture child `world-lifecycle`. The unchanged `bc.pack_test.verify_exit.v1` payload is strictly bounded/typed and binds actual loaded native server/level/player references, EMI readiness and a one-shot normal native exit. The harness requests exit only after marker equality and nondecreasing saved/reopened time. No journal/native storage properties or checkpoints participate; no aliases are accepted. No storage initialization, repair or UUID replacement occurs.
+
+`./gradlew build` also builds and validates `build/libs/better-runtime-test-support.jar`, a test-only non-cancelling rotation/species observer. Its `bc.pack_test.diagnostics.*` metadata binds the disposable run and hashes; it has no item recipes, commands, packet-action observer, inventory ledger or storage hooks. Mapping, bytecode non-cancellation and production isolation guards are mandatory. This supplement is injected only into copied pack fixtures, classified only in their copied blocking KubeJS policy, and forbidden in distributable ZIPs even when renamed. It is not a production dependency.
+
 ## Canonical identity
 
 - Repository and release artifact: `better-runtime-diagnostics`

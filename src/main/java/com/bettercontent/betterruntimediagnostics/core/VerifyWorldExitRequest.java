@@ -36,20 +36,19 @@ public final class VerifyWorldExitRequest {
         }
     }
 
-    /** Properties absent or not the exact supported journal fixture leave normal VERIFY inert. */
+    /** Properties absent or not the exact owned lifecycle fixture leave normal VERIFY inert. */
     public static Optional<Binding> configured(Function<String, String> property) {
         try {
-            if (!"verify".equals(property.apply("bc.pack_test.world"))
-                    || !"verify".equals(property.apply("bc.journal.contract.singleplayer"))) return Optional.empty();
+            if (!"verify".equals(property.apply("bc.pack_test.world"))) return Optional.empty();
             String nonce = property.apply(PREFIX + "nonce");
             if (nonce == null || nonce.isBlank()) return Optional.empty();
-            String run = property.apply("bc.journal.contract.run_id"), player = property.apply("bc.journal.contract.player");
+            String run = property.apply(PREFIX + "run_id"), player = property.apply(PREFIX + "player");
             if (run == null || !run.matches("[0-9]{8}T[0-9]{6}Z-[0-9]+")
                     || player == null || !player.matches("[A-Za-z0-9_]{1,16}")) return Optional.empty();
             var binding = new Binding(canonicalUuid(nonce), run, player, canonicalUuid(property.apply(PREFIX + "player_uuid")),
                 Path.of(property.apply(PREFIX + "fixture_root")), Path.of(property.apply(PREFIX + "world_root")),
                 Path.of(property.apply(PREFIX + "request_dir")));
-            if (!binding.requestDir().toString().equals(property.apply("bc.journal.contract.dir")) || !safeBinding(binding)) return Optional.empty();
+            if (!safeBinding(binding)) return Optional.empty();
             return Optional.of(binding);
         } catch (IllegalArgumentException | NullPointerException | SecurityException failure) { return Optional.empty(); }
     }
@@ -75,7 +74,7 @@ public final class VerifyWorldExitRequest {
                 && "fixture".equals(fixture.getFileName().toString())
                 && fixture.getParent() != null && fixture.getParent().getParent() != null
                 && binding.runId().equals(fixture.getParent().getParent().getFileName().toString())
-                && dir.equals(fixture.resolve("journal-contract")) && world.startsWith(fixture)
+                && dir.equals(fixture.resolve("world-lifecycle")) && world.startsWith(fixture)
                 && "DebugWorld".equals(world.getFileName().toString())
                 && world.getParent() != null && "saves".equals(world.getParent().getFileName().toString());
         } catch (IOException | IllegalArgumentException | NullPointerException | SecurityException failure) { return false; }

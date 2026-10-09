@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+[[mods]]
+modId="better_runtime_test_support"
+version="0.1.0"
+displayName="Better Runtime Test Support"
+description="Disposable non-cancelling rotation and species observations; not distributable content."
+[[dependencies.better_runtime_test_support]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.better_runtime_test_support]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.20.2)"
+ordering="NONE"
+side="BOTH"
