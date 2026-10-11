@@ -85,6 +85,12 @@ val testSupport = sourceSets.create("testSupport") {
 configurations[testSupport.compileOnlyConfigurationName].extendsFrom(configurations.compileOnly.get())
 dependencies {
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:untamed-wilds-au-naturel-1399279:7441092"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:the-deep-void-982999:8507128"))
+    // Typed normal onboarding driver, fixture-only. Canonical preparation supplies the
+    // verified provider stage; standalone source gates use the declared bundled input.
+    val providerRoot = System.getenv("BC_CUSTOM_MOD_JAR_DIR")?.let(::file)
+        ?: file("../../better-content-modpack/mods")
+    add(testSupport.compileOnlyConfigurationName, fg.deobf(files(providerRoot.resolve("better-spawns-1.0.0.jar"))))
     add(testSupport.annotationProcessorConfigurationName, "org.spongepowered:mixin:0.8.5:processor")
 }
 mixin { add(testSupport, "better_runtime_test_support.refmap.json") }

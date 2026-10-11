@@ -91,6 +91,23 @@ Build, test, and stage the reobfuscated runtime JAR with:
 
 `./gradlew build` also builds and validates `build/libs/better-runtime-test-support.jar`, a test-only non-cancelling rotation/species observer. Its `bc.pack_test.diagnostics.*` metadata binds the disposable run and hashes; it has no item recipes, commands, packet-action observer, inventory ledger or storage hooks. Mapping, bytecode non-cancellation and production isolation guards are mandatory. This supplement is injected only into copied pack fixtures, classified only in their copied blocking KubeJS policy, and forbidden in distributable ZIPs even when renamed. It is not a production dependency.
 
+The isolated supplement additionally provides explicitly armed, nonce-bound native acceptance
+probes. `FreshWorldProbe` accepts only an absent save in a fresh Debug singleplayer fixture,
+creates a normal world with the native random seed, observes the production resolved initial
+spawn, submits the typed Better Spawns onboarding action and records correlated native Survival
+ticks. Its explicit exit request uses normal disconnect/server shutdown. It never authors a
+spawn marker. `FreshWorldInput` tests reject wrong fixture/run/tier, preexisting saves, symlinks
+and mismatched exit bindings.
+
+`DeepVoidTickProbe` arms a real network Survival player in the extended-bottom Overworld and
+observes before/after the upstream native END tick. It records above-boundary and disabled-switch
+negative controls before native entry and restores temporary config state. It does not call the
+upstream procedure or teleport into the destination. The harness separately requires the real
+client's destination report. Compile inputs include the staged Better Spawns provider and exact
+Deep Void file 8507128; these are supplement-only dependencies, not production API additions.
+Support hashes are candidate-bound. Source/contract gates prove compilation and isolation, not
+native runtime acceptance; see the [shared testing procedure](../../better-content-modpack/docs/testing.md).
+
 ## Canonical identity
 
 - Repository and release artifact: `better-runtime-diagnostics`
