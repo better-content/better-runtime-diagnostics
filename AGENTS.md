@@ -1,19 +1,10 @@
-# AGENTS.md
+# Better Runtime Diagnostics
 
-## Project identity
+Forge 1.20.1 / Java 17; mod ID `better_runtime_diagnostics`;
+base package `com.bettercontent.betterruntimediagnostics`.
+Source gate: `./gradlew build`; runtime staging: `./gradlew stageRuntimeJar`.
+Do not add compatibility aliases or migrations for pre-normalization identities.
 
-- Repository and artifact: `better-runtime-diagnostics`
-- Mod ID and resource namespace: `better_runtime_diagnostics`
-- Base package: `com.bettercontent.betterruntimediagnostics`
-- Java: 17
-- Forge: 1.20.1-47.4.13
-
-## Validation
-
-- Run `./gradlew build` before committing or pushing.
-- Keep generated Gradle, build, run, log, and IDE output untracked.
-
-## Commit discipline
-
-- Commit each coherent, validated change and push it promptly.
-- Do not add compatibility aliases or migrations for pre-normalization identities.
+Read [shared workspace policy](../../better-content-modpack/docs/policies/workspace.md)
+and its linked testing/disposal policies. Docs-only changes use the shared document check
+and `git diff --check`, not unrelated runtime builds.
