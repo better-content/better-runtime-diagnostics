@@ -89,7 +89,7 @@ Build, test, and stage the reobfuscated runtime JAR with:
 
 `bc.pack_test.world=save|verify` enables the existing isolated integrated-world lifecycle probe. Verify exit is normally inert. Its explicit `bc.pack_test.verify_exit.*` interface carries `run_id`, `player`, canonical `player_uuid`, `nonce`, `fixture_root`, `world_root`, and `request_dir`. The last must be exactly the fresh fixture child `world-lifecycle`. The unchanged `bc.pack_test.verify_exit.v1` payload is strictly bounded/typed and binds actual loaded native server/level/player references, EMI readiness and a one-shot normal native exit. The harness requests exit only after marker equality and nondecreasing saved/reopened time. No journal/native storage properties or checkpoints participate; no aliases are accepted. No storage initialization, repair or UUID replacement occurs.
 
-`./gradlew build` also builds and validates `build/libs/better-runtime-test-support.jar`, a test-only non-cancelling rotation/species observer. Its `bc.pack_test.diagnostics.*` metadata binds the disposable run and hashes; it has no item recipes, commands, packet-action observer, inventory ledger or storage hooks. Mapping, bytecode non-cancellation and production isolation guards are mandatory. This supplement is injected only into copied pack fixtures, classified only in their copied blocking KubeJS policy, and forbidden in distributable ZIPs even when renamed. It is not a production dependency.
+`./gradlew build` also builds and validates `build/libs/better-runtime-test-support.jar`, an isolated test supplement with non-cancelling rotation/species observers and explicitly armed native fixture drivers. Its `bc.pack_test.diagnostics.*` metadata binds the disposable run and hashes; it has no item recipes, commands, packet-action observer, inventory ledger or storage hooks. Mapping, observer bytecode non-cancellation and production isolation guards are mandatory; the separately audited gameplay hold driver below is the sole narrow cancellation exception. This supplement is injected only into copied pack fixtures, classified only in their copied blocking KubeJS policy, and forbidden in distributable ZIPs even when renamed. It is not a production dependency.
 
 The isolated supplement additionally provides explicitly armed, nonce-bound native acceptance
 probes. `FreshWorldProbe` accepts only an absent save in a fresh Debug singleplayer fixture,
@@ -107,6 +107,26 @@ client's destination report. Compile inputs include the staged Better Spawns pro
 Deep Void file 8507128; these are supplement-only dependencies, not production API additions.
 Support hashes are candidate-bound. Source/contract gates prove compilation and isolation, not
 native runtime acceptance; see the [shared testing procedure](../../better-content-modpack/docs/testing.md).
+
+The explicit Debug `gameplay` target also binds all requests and responses to run, nonce, player
+and candidate/support hashes. Its presence observer reads only exact public campaign APIs and
+persists actual eligible native ticks/monotonic time across a real server-process restart; it
+never seeds campaign history or credits offline time. Authored world/item actions exercise the
+actual registry providers, native menus, harvesting and readiness feedback. Read-only client
+hooks observe submitted particles/progress and native sound-source playback. The separate
+held-cut driver suppresses only a bound no-input release, once-per-native-tick public mining
+calls continue normally, and new targets/stop/disconnect/deadline clear it. Its exact bytecode
+boundaries are checked separately; it is not human mouse input.
+
+Native framebuffer captures and typed pinned Oculus APIs distinguish default rendering from
+actual shader-enabled day/night frames. The harness's native OpenAL WAVE backend captures mixer
+output through normal client exit, not synthetic sound. Sound dispatch, native source playing,
+aggregate PCM, cue-specific waveform identification and physical listening remain distinct
+verdicts. Native GUI frames do not authorize human-pointer inventory acceptance. All these
+helpers remain supplement-only, never production/candidate content. New fixture compile APIs
+use named local Ivy providers (ForgeGradle does not deobfuscate `files(...)` dependencies);
+canonical `BC_CUSTOM_MOD_JAR_DIR` stages override the declared standalone SDK sources. See the
+[shared gameplay procedure](../../better-content-modpack/docs/testing.md).
 
 ## Canonical identity
 

@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
-/** Non-mutating diagnostics are enabled only by an explicit disposable fixture identity. */
+/** Explicit disposable-fixture diagnostics. Gameplay's reviewed hold driver has an additional Debug gate. */
 public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
     private boolean enabled;
     public static boolean explicitFixture(String run, String directory) {
@@ -32,6 +32,8 @@ public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
     @Override public String getRefMapperConfig() { return null; }
     @Override public boolean shouldApplyMixin(String target, String mixin) {
         if (!enabled) return false;
+        if (gameplayMixin(target, mixin, System.getProperty("bc.pack_test.diagnostics.mode", ""),
+                Boolean.getBoolean("bc.pack_test.gameplay_client"))) return true;
         if ("net.minecraft.world.entity.Entity".equals(target))
             return "com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixin".equals(mixin);
         if (!"untamedwilds.util.EntityUtils".equals(target)
@@ -43,6 +45,14 @@ public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
             LoggerFactory.getLogger("runtime-fixture/nonfinite-rotation").info("species-probe-gate: enabled={} native_version=4.0.4", pinned);
             return pinned;
         } catch (Throwable observerFailure) { return false; }
+    }
+    public static boolean gameplayMixin(String target, String mixin, String mode, boolean requested) {
+        if (!requested || !"debug".equals(mode)) return false;
+        if ("net.minecraft.client.particle.ParticleEngine".equals(target))
+            return "com.bettercontent.runtimetestsupport.diagnostics.GameplayParticleMixin".equals(mixin);
+        return "net.minecraft.client.multiplayer.MultiPlayerGameMode".equals(target)
+            && Set.of("com.bettercontent.runtimetestsupport.diagnostics.GameplayCutMixin",
+                "com.bettercontent.runtimetestsupport.diagnostics.GameplayCutDriverMixin").contains(mixin);
     }
     @Override public void acceptTargets(Set<String> mine, Set<String> others) {}
     @Override public List<String> getMixins() { return null; }
