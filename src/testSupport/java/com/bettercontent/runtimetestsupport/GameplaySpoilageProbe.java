@@ -68,7 +68,16 @@ public final class GameplaySpoilageProbe {
             Item backpack = item("sophisticatedbackpacks:backpack");
             ItemStack previous = slot.getStacks().getStackInSlot(0);
             require(previous.isEmpty() || previous.is(backpack), "refusing to replace nonfixture backpack");
-            slot.getStacks().setStackInSlot(0, action.equals("rod-equipped") ? new ItemStack(backpack) : ItemStack.EMPTY);
+            require(previous.isEmpty() || previous.getCount() == 1, "unexpected fixture backpack count");
+            if (action.equals("rod-equipped")) {
+                if (previous.isEmpty()) {
+                    ItemStack remainder = slot.getStacks().insertItem(0, new ItemStack(backpack), false);
+                    require(remainder.isEmpty(), "native Curios backpack insertion rejected");
+                }
+            } else if (!previous.isEmpty()) {
+                ItemStack extracted = slot.getStacks().extractItem(0, 1, false);
+                require(extracted.is(backpack) && extracted.getCount() == 1, "native Curios backpack extraction rejected");
+            }
             boolean equipped = !slot.getStacks().getStackInSlot(0).isEmpty();
             require(equipped == action.equals("rod-equipped"), "native equipment state mismatch");
             out.put("backpack_equipped", equipped); out.put("equipment_origin", "authored_fixture_native_curios_handler");

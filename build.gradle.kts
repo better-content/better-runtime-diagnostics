@@ -207,4 +207,8 @@ val verifyTestSupportIsolation by tasks.registering {
 }
 tasks.named("check") { dependsOn(verifyTestSupportIsolation) }
 tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    useJUnitPlatform()
+    inputs.dir("src/testSupport/java")
+    inputs.dir("src/testSupport/resources")
+}
