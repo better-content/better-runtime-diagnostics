@@ -132,6 +132,34 @@ class DiagnosticSupportBoundaryTest {
         assertThrows(AssertionError.class, () -> assertDriverGates(driver, plugin.replace("if (!enabled) return false;", "")));
         assertThrows(AssertionError.class, () -> assertDriverGates(driver, plugin.replace("!requested ||", "")));
     }
+    private static void assertWhaleReadOnly(String source) {
+        String code = compact(source);
+        assertFalse(code.contains("@Mixin"));
+        for (String operation : List.of(".set", ".add", ".remove", ".discard(", ".kill(", ".teleport",
+                ".send", ".cancel(", ".write", ".delete", ".create", ".move(", ".copy(", ".put(",
+                ".execute(", ".invoke(", ".getDeclared", "java.lang.reflect", "Unsafe"))
+            assertFalse(code.contains(operation), "whale observer action: " + operation);
+    }
+
+    @Test void whaleObserverIsReadOnlyAndClientOnly() throws Exception {
+        String observer = Files.readString(ROOT.resolve("whale/WhaleClientObserver.java"));
+        String pure = Files.readString(Path.of("src/testSupportPure/java/com/bettercontent/runtimetestsupport/whale/WhaleObservation.java"));
+        assertWhaleReadOnly(observer);
+        assertWhaleReadOnly(pure);
+        assertTrue(observer.contains("value = Dist.CLIENT"));
+        assertTrue(observer.contains("event.phase != TickEvent.Phase.END"));
+        assertTrue(observer.contains("event.getLevel() != mc.level"));
+        assertTrue(observer.contains("mc.level.getEntity(entity.getId()) == entity"));
+        assertTrue(observer.contains("ClientPlayerNetworkEvent.LoggingOut"));
+        assertTrue(observer.contains("mc.getConnection() != null && mc.getConnection().getConnection().isConnected()"));
+        assertTrue(observer.contains("boolean online = networkConnected(mc)"));
+        assertTrue(observer.contains("networkConnected(mc), mc.level instanceof ClientLevel"));
+        assertFalse(pure.contains("import net.minecraft"));
+        for (String mutation : List.of("entity.setYRot(0);", "event.setCanceled(true);", "entity.discard();",
+                "connection.send(packet);", "Files.write(path, bytes);", "@Mixin(Entity.class)"))
+            assertThrows(AssertionError.class, () -> assertWhaleReadOnly(observer + mutation));
+    }
+
     @Test void observersRemainNonCancellingAndStorageFree() throws Exception {
         Path root=Path.of("src/testSupport/java/com/bettercontent/runtimetestsupport");
         try(var paths=Files.walk(root)) {

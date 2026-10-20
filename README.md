@@ -128,6 +128,43 @@ use named local Ivy providers (ForgeGradle does not deobfuscate `files(...)` dep
 canonical `BC_CUSTOM_MOD_JAR_DIR` stages override the declared standalone SDK sources. See the
 [shared gameplay procedure](../../better-content-modpack/docs/testing.md).
 
+### Read-only native whale receipt
+
+The supplement's `WhaleClientObserver` is a `Dist.CLIENT` Forge subscriber (not a mixin).
+It is inert unless the client JVM explicitly supplies `bc.pack_test.whale.enabled=true`,
+canonical lowercase dashed UUID properties `bc.pack_test.whale.nonce`, `.entity_uuid` and
+`.player_uuid`, and the existing `bc.pack_test.diagnostics.run_id`, `.mode=debug`,
+`.client_sha256`, `.server_sha256`, `.runtime_sha256`, `.support_sha256` and `.dir` properties.
+Hashes must be exactly 64 lowercase hexadecimal characters. The directory must be an existing,
+canonical, nonsymlink `<runRoot>/<runId>/<suite-or-target>/fixture/runtime-diagnostics`;
+the actual native client game directory must be an existing nonsymlink sibling `client-N`.
+Bindings are checked again while armed; invalid or changed properties permanently disarm the
+observer in that JVM. A nonce and newly summoned entity UUID are required for each fresh probe.
+
+Only a native client `EntityJoinLevelEvent` for the exact UUID and type
+`untamedwilds:baleen_whale` in `minecraft:overworld`, with the matching local player and an
+underlying native connection reporting `Connection.isConnected()`, starts the observation window. The same native entity reference must then be present
+in the same `ClientLevel` at two distinct later END client ticks. Wrong identities, types,
+dimensions, absent entities or replacement references permanently disarm after the join;
+repeated/stale ticks are ignored and cannot contribute. There is no
+pre-join deadline. The post-join window is 30 monotonic seconds; disconnect, changed binding,
+level replacement or expiry permanently clears it. It cannot rearm an old binding.
+
+Success emits exactly one INFO line beginning `BC_WHALE_CLIENT_OBSERVED ` followed by compact
+JSON with schema `bc.whale_client_observation.v1` and `run`, `nonce`, `player_uuid`, `entity_uuid`,
+`entity_type`, `dimension`, `join_tick`, `first_tick`, `last_tick`, `client_sha256`, `server_sha256`,
+`runtime_sha256`, `support_sha256`. These ticks are this observer's monotonically increasing END
+client-tick counter, not server ticks or wall-clock estimates. The observer does not summon,
+mutate, cancel, send packets or replace native behavior. The harness independently bounds
+post-summon waiting and requires a fresh heartbeat; a receipt is not visual acceptance.
+
+`src/testSupportPure` holds immutable Java bindings/observations/state; JUnit loads that output
+without loading native client classes. The pure output is included only in the support JAR,
+never production. `WhaleObservationTest` covers strict properties/fixture ancestry, wrong native
+identities, reference replacement, missing joins, stale/repeated ticks, disconnect, expiry and
+one-shot completion. Source and bytecode guards reject whale gameplay mutation/cancellation;
+`./gradlew build` remains the full source gate.
+
 ## Canonical identity
 
 - Repository and release artifact: `better-runtime-diagnostics`

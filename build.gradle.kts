@@ -99,9 +99,15 @@ val stageRuntimeJar by tasks.registering(Copy::class) {
 
 tasks.named("assemble") { dependsOn(stageRuntimeJar) }
 
+// Native-free support logic is executable by JUnit without loading the Forge adapter.
+val testSupportPure = sourceSets.create("testSupportPure")
+sourceSets.test {
+    compileClasspath += testSupportPure.output
+    runtimeClasspath += testSupportPure.output
+}
 // Observational fixture supplement only; excluded from production and candidate archives.
 val testSupport = sourceSets.create("testSupport") {
-    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    compileClasspath += testSupportPure.output + sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath += output + compileClasspath
 }
 configurations[testSupport.compileOnlyConfigurationName].extendsFrom(configurations.compileOnly.get())
@@ -125,7 +131,7 @@ dependencies {
 mixin { add(testSupport, "better_runtime_test_support.refmap.json") }
 val testSupportJar by tasks.registering(Jar::class) {
     archiveFileName.set("better-runtime-test-support.jar")
-    from(testSupport.output)
+    from(testSupport.output, testSupportPure.output)
     doFirst { manifest.attributes["MixinConfigs"] = "better_runtime_test_support.mixins.json" }
 }
 reobf { create("testSupportJar") { libraries.from(sourceSets.main.get().output, sourceSets.main.get().compileClasspath, testSupport.compileClasspath) } }
@@ -158,6 +164,32 @@ val verifyTestSupportIsolation by tasks.registering {
                         override fun visitMethodInsn(opcode:Int,owner:String,method:String,descriptor:String,isInterface:Boolean){require(method !in setOf("cancel","setReturnValue","setYRot","setXRot","m_146922_","m_146926_","registerEntityData","getEntityData")){"Observer mutates native outcome/rotation/species"}}
                     }
                 },ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+            }
+            // Whale code has no native write/action/cancellation authority, including obfuscated calls.
+            val whaleReads = setOf("getInstance", "m_91087_", "getConnection", "m_91403_", "m_104910_", "isConnected", "m_129536_",
+                "getUUID", "m_20148_", "getType", "m_6095_", "level", "m_9236_",
+                "getId", "m_19879_", "isRemoved", "m_213877_", "getEntity", "m_6815_",
+                "dimension", "m_46472_", "location", "m_135782_", "getLevel", "getEntity")
+            for (entry in jar.entries().asSequence().filter { it.name.startsWith("com/bettercontent/runtimetestsupport/whale/") && it.name.endsWith(".class") }) {
+                jar.getInputStream(entry).use { input ->
+                    ClassReader(input).accept(object : ClassVisitor(Opcodes.ASM9) {
+                        override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? {
+                            require(!descriptor.contains("mixin")) { "Whale observer cannot use mixins" }
+                            return null
+                        }
+                        override fun visitMethod(access: Int, name: String?, descriptor: String?, signature: String?, exceptions: Array<out String>?): MethodVisitor = object : MethodVisitor(Opcodes.ASM9) {
+                            override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
+                                require(opcode !in setOf(Opcodes.PUTFIELD, Opcodes.PUTSTATIC) || owner.startsWith("com/bettercontent/runtimetestsupport/whale/")) { "Whale observer writes external field" }
+                            }
+                            override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) {
+                                require(name !in setOf("cancel", "setCanceled", "setResult", "setReturnValue")) { "Whale observer cancels native behavior" }
+                                if (owner.startsWith("net/minecraft/") || owner.startsWith("net/minecraftforge/"))
+                                    require(name in whaleReads || (owner == "net/minecraftforge/registries/IForgeRegistry" && name == "getKey") ||
+                                        (owner == "net/minecraft/resources/ResourceLocation" && name == "toString" && descriptor == "()Ljava/lang/String;")) { "Whale observer action: $owner.$name" }
+                            }
+                        }
+                    }, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+                }
             }
             // The only reviewed gameplay mutation is the explicit bound native hold driver.
             // Keep it separate from the read-only observers; prohibit any other method call,
