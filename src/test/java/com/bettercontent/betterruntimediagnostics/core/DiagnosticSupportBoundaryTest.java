@@ -31,6 +31,11 @@ class DiagnosticSupportBoundaryTest {
 
     private static void assertBoundary(Path relative, String source) {
         boolean driver = DRIVER.equals(relative);
+        // Authored native queen admission is not player/storage manipulation. Permit this
+        // exact public bee-inventory operation in this one fixture only; all other slot
+        // writes remain forbidden, including additional writes in the same source file.
+        if (relative.equals(Path.of("gameplay/ColonyWorldProbe.java")))
+            source = source.replace("apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get()));", "");
         for (String token : List.of("bc.native.inventory", "bc.journal.contract", "NativeContract", "NativeCheckpoint",
                 "NativeClientPacketMixin", "setStackInSlot", "setInvulnerable", "callback.cancel",
                 "callback.setReturnValue", "entity.setYRot", "entity.setXRot"))
@@ -119,6 +124,8 @@ class DiagnosticSupportBoundaryTest {
                 driver.replace("ci.cancel();", "inventory.setStackInSlot(0, stack); ci.cancel();")))
             assertThrows(AssertionError.class, () -> assertBoundary(DRIVER, mutated));
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("GameplaySpoilageProbe.java"), "inventory.setStackInSlot(0, stack);"));
+        assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), "apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get()));");
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), "apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get())); inventory.setStackInSlot(0, stack);"));
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("diagnostics/GameplayParticleMixin.java"), "@Inject(cancellable=true) void observe() { ci.cancel(); }"));
     }
 

@@ -34,6 +34,15 @@ public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
         if (!enabled) return false;
         if (gameplayMixin(target, mixin, System.getProperty("bc.pack_test.diagnostics.mode", ""),
                 Boolean.getBoolean("bc.pack_test.gameplay_client"))) return true;
+        if (worldHooksMixin(target, mixin, System.getProperty("bc.pack_test.diagnostics.mode", ""),
+                Boolean.getBoolean("bc.pack_test.gameplay_world"))) {
+            try {
+                java.util.UUID.fromString(System.getProperty("bc.pack_test.gameplay_world.nonce", ""));
+                for (String kind : List.of("client", "server", "runtime", "support"))
+                    if (!System.getProperty("bc.pack_test.diagnostics." + kind + "_sha256", "").matches("[a-f0-9]{64}")) return false;
+                return true;
+            } catch (RuntimeException absentBinding) { return false; }
+        }
         if ("net.minecraft.world.entity.Entity".equals(target))
             return "com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixin".equals(mixin);
         if (!"untamedwilds.util.EntityUtils".equals(target)
@@ -53,6 +62,18 @@ public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
         return "net.minecraft.client.multiplayer.MultiPlayerGameMode".equals(target)
             && Set.of("com.bettercontent.runtimetestsupport.diagnostics.GameplayCutMixin",
                 "com.bettercontent.runtimetestsupport.diagnostics.GameplayCutDriverMixin").contains(mixin);
+    }
+    public static boolean worldHooksMixin(String target, String mixin, String mode, boolean requested) {
+        if (!requested || !"debug".equals(mode)) return false;
+        String owner="com.bettercontent.runtimetestsupport.gameplay.WorldHooksInteractionWorldProbe$";
+        return switch (target) {
+            case "net.minecraft.world.level.Explosion" -> (owner+"ExplosionRadiusAccess").equals(mixin);
+            case "com.bettercontent.betterburiedencounters.worldgen.ExplosionRemovalTracker" -> (owner+"BuriedTrackerObservationMixin").equals(mixin);
+            case "com.bettercontent.betterburiedencounters.worldgen.MonsterSpawner" -> (owner+"BuriedSpawnerObservationMixin").equals(mixin);
+            case "com.vinlanx.explosionoverhaul.ServerExplosionHandler" -> (owner+"NativeEngineObservationMixin").equals(mixin);
+            case "com.vinlanx.explosionoverhaul.CraterDeformer" -> (owner+"NativeCraterObservationMixin").equals(mixin);
+            default -> false;
+        };
     }
     @Override public void acceptTargets(Set<String> mine, Set<String> others) {}
     @Override public List<String> getMixins() { return null; }

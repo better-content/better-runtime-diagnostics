@@ -47,7 +47,21 @@ val fixtureProviders = listOf(
     FixtureProvider("better-survival-physiology", "0.1.1", "physiology"),
     FixtureProvider("better-wild-fruit-trees", "0.1.1", "wildfruit"),
     FixtureProvider("better-spirit-commerce", "1.0.1", "commerce"),
-    FixtureProvider("better-spawns", "1.0.0", "spawns")
+    FixtureProvider("better-spawns", "1.0.0", "spawns"),
+    FixtureProvider("better-compat-fixes", "0.1.9", "compat"),
+    FixtureProvider("better-arena-trials", "0.1.0", "arena"),
+    FixtureProvider("better-deaths-door", "1.0.0", "door"),
+    FixtureProvider("better-rpg-progression", "1.0.1", "rpg"),
+    FixtureProvider("better-player-traces", "0.1.0", "traces"),
+    FixtureProvider("better-airtight-machines", "0.1.0", "airtight"),
+    FixtureProvider("better-chemlib-hazards", "0.2.0", "hazards"),
+    FixtureProvider("better-create-kinetic-loss", "0.1.0", "kineticloss"),
+    FixtureProvider("better-oc2r-create-controls", "0.1.0", "oc2controls"),
+    FixtureProvider("better-oc2r-wireless-messaging", "1.0.0", "wireless"),
+    FixtureProvider("better-buried-encounters", "0.1.0", "buried"),
+    FixtureProvider("better-regolith-farming", "0.1.0", "regolith"),
+    FixtureProvider("better-malum-dynamic-trees", "1.0.1", "malum"),
+    FixtureProvider("better-wildfire", "0.1.0", "wildfire")
 )
 val fixtureProviderDirectory = providers.environmentVariable("BC_CUSTOM_MOD_JAR_DIR").orNull
 require(fixtureProviderDirectory == null || fixtureProviderDirectory.isNotBlank()) { "BC_CUSTOM_MOD_JAR_DIR must not be blank" }
@@ -63,6 +77,10 @@ repositories {
         }
     }
     maven("https://maven.minecraftforge.net")
+    maven("https://maven.createmod.net")
+    maven("https://maven.ithundxr.dev/mirror")
+    maven("https://maven.tterrag.com/")
+    maven("https://api.modrinth.com/maven") { content { includeGroup("maven.modrinth") } }
     maven("https://www.cursemaven.com") { content { includeGroup("curse.maven") } }
     mavenCentral()
 }
@@ -115,8 +133,20 @@ dependencies {
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:untamed-wilds-au-naturel-1399279:7441092"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:the-deep-void-982999:8507128"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:starcatcher-1357603:7582886"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("com.simibubi.create:create-1.20.1:6.0.8-291:slim"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("net.createmod.ponder:Ponder-Forge-1.20.1:1.0.92"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("com.tterrag.registrate:Registrate:MC1.20-1.3.3"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("maven.modrinth:F1gm4RsH:2.2.12"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:explosion-overhaul-a-new-level-of-destruction-1296203:7659431"))
+    add(testSupport.compileOnlyConfigurationName, "org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:curios-309927:6418456"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:diet-443570:4813904"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:thirst-was-taken-679270:6660408"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:complicated-bees-1100137:8277762"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:emi-580555:8081375"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:lootr-361276:7263076"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:sophisticated-backpacks-422301:7916619"))
+    add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:sophisticated-core-618298:7916595"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:oculus-581495:6020952"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:dynamic-trees-252818:7502488"))
     fixtureProviders.forEach { provider ->
@@ -145,11 +175,15 @@ val verifyTestSupportIsolation by tasks.registering {
         }
         ZipFile(testSupportJar.get().archiveFile.get().asFile).use { jar ->
             val config=jar.getInputStream(requireNotNull(jar.getEntry("better_runtime_test_support.mixins.json"))).reader().use { com.google.gson.JsonParser.parseReader(it).asJsonObject }
-            require(config.getAsJsonArray("mixins").map { it.asString } == listOf("NonfiniteRotationMixin","UntamedSpeciesObservationMixin")) { "Unexpected diagnostic observers" }
+            val worldObservers = listOf("ExplosionRadiusAccess", "BuriedTrackerObservationMixin", "BuriedSpawnerObservationMixin", "NativeEngineObservationMixin", "NativeCraterObservationMixin")
+            require(config.get("package").asString == "com.bettercontent.runtimetestsupport") { "Unexpected observer package" }
+            require(config.getAsJsonArray("mixins").map { it.asString } == listOf("diagnostics.NonfiniteRotationMixin","diagnostics.UntamedSpeciesObservationMixin") + worldObservers.map { "gameplay.WorldHooksInteractionWorldProbe\$$it" }) { "Unexpected diagnostic observers" }
             val gameplayObservers = listOf("GameplayParticleMixin", "GameplayCutMixin")
-            require(config.getAsJsonArray("client").map { it.asString } == gameplayObservers + "GameplayCutDriverMixin") { "Unexpected gameplay hooks" }
+            require(config.getAsJsonArray("client").map { it.asString } == (gameplayObservers + "GameplayCutDriverMixin").map { "diagnostics.$it" }) { "Unexpected gameplay hooks" }
             val refmap=jar.getInputStream(requireNotNull(jar.getEntry("better_runtime_test_support.refmap.json"))).reader().use { com.google.gson.JsonParser.parseReader(it).asJsonObject }
             for(mapping in listOf(refmap.getAsJsonObject("mappings"),refmap.getAsJsonObject("data").getAsJsonObject("searge"))) {
+                val radius=mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/gameplay/WorldHooksInteractionWorldProbe\$ExplosionRadiusAccess")
+                require(radius.get("radius").asString == "f_46017_:F") { "Native Explosion radius accessor is unmapped" }
                 val rotation=mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/diagnostics/NonfiniteRotationMixin")
                 require(rotation.get("setYRot(F)V").asString == "Lnet/minecraft/world/entity/Entity;m_146922_(F)V" && rotation.get("setXRot(F)V").asString == "Lnet/minecraft/world/entity/Entity;m_146926_(F)V") { "Rotation observers are unmapped" }
                 for (name in gameplayObservers + "GameplayCutDriverMixin") {
@@ -157,10 +191,12 @@ val verifyTestSupportIsolation by tasks.registering {
                     require(hooks != null && hooks.entrySet().any { it.value.asString.contains(";m_") }) { "Gameplay hook $name has no mapped native method" }
                 }
             }
-            for(name in listOf("NonfiniteRotationMixin","UntamedSpeciesObservationMixin") + gameplayObservers) jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/diagnostics/$name.class"))).use { input ->
+            val observerClasses = (listOf("NonfiniteRotationMixin","UntamedSpeciesObservationMixin") + gameplayObservers).map { "diagnostics/$it" } + worldObservers.map { "gameplay/WorldHooksInteractionWorldProbe\$$it" }
+            for(name in observerClasses) jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/$name.class"))).use { input ->
                 ClassReader(input).accept(object:ClassVisitor(Opcodes.ASM9){
                     override fun visitMethod(access:Int,method:String?,descriptor:String?,signature:String?,exceptions:Array<out String>?):MethodVisitor=object:MethodVisitor(Opcodes.ASM9){
                         override fun visitAnnotation(descriptor:String,visible:Boolean):AnnotationVisitor? = if(descriptor=="Lorg/spongepowered/asm/mixin/injection/Inject;")object:AnnotationVisitor(Opcodes.ASM9){override fun visit(key:String?,value:Any?){require(!(key=="cancellable"&&value==true)){"Observer can cancel gameplay"}}}else null
+                        override fun visitFieldInsn(opcode:Int,owner:String,field:String,descriptor:String){require(opcode !in setOf(Opcodes.PUTFIELD,Opcodes.PUTSTATIC) || owner.startsWith("com/bettercontent/runtimetestsupport/")){"Observer writes native field"}}
                         override fun visitMethodInsn(opcode:Int,owner:String,method:String,descriptor:String,isInterface:Boolean){require(method !in setOf("cancel","setReturnValue","setYRot","setXRot","m_146922_","m_146926_","registerEntityData","getEntityData")){"Observer mutates native outcome/rotation/species"}}
                     }
                 },ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)

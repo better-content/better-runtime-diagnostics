@@ -57,6 +57,7 @@ public final class GameplayWorldProbe {
     public static void tick(TickEvent.PlayerTickEvent event) throws Exception {
         if (!Boolean.getBoolean("bc.pack_test.gameplay_world") || event.phase != TickEvent.Phase.END
                 || !(event.player instanceof ServerPlayer player)) return;
+        PlantDrinkProbe.tick(player);
         String run = System.getProperty("bc.pack_test.diagnostics.run_id", "");
         String nonce = System.getProperty("bc.pack_test.gameplay_world.nonce", "");
         if (!"debug".equals(System.getProperty("bc.pack_test.diagnostics.mode")) || !run.matches("[A-Za-z0-9_.-]{1,128}")
@@ -70,13 +71,18 @@ public final class GameplayWorldProbe {
         if (!player.getUUID().toString().equals(input.get("player").getAsString())) return;
         int next = input.get("sequence").getAsInt();
         String label = input.get("label").getAsString();
+        boolean lifecycleObservation = input.get("action").getAsString().equals("lifecycle-observe");
+        boolean colonyReturn = input.get("action").getAsString().equals("bees-return")
+                && Math.abs(player.getX() - (CORE - 512)) < 2 && Math.abs(player.getZ() - CORE) < 2
+                && Math.abs(player.getY() - 316) < 4 && player.serverLevel().dimension().equals(Level.OVERWORLD)
+                && player.isAlive() && player.gameMode.getGameModeForPlayer() == GameType.SURVIVAL;
         if (!"bc.gameplay_world_request.v1".equals(input.get("schema").getAsString()) || !run.equals(input.get("run").getAsString())
                 || !nonce.equals(input.get("nonce").getAsString())
                 || !System.getProperty("bc.pack_test.diagnostics.client_sha256", "").equals(input.get("client_sha256").getAsString())
                 || !System.getProperty("bc.pack_test.diagnostics.server_sha256", "").equals(input.get("server_sha256").getAsString()) || next <= sequence || !label.matches("[A-Za-z0-9_.-]{1,80}")
-                || !player.serverLevel().dimension().equals(Level.OVERWORLD) || !player.isAlive()
+                || (!(lifecycleObservation || colonyReturn) && (!player.serverLevel().dimension().equals(Level.OVERWORLD) || !player.isAlive()
                 || player.gameMode.getGameModeForPlayer() != GameType.SURVIVAL
-                || Math.abs(player.getX() - CORE) > 128 || Math.abs(player.getZ() - CORE) > 128 || Math.abs(player.getY() - 316) > 32)
+                || Math.abs(player.getX() - CORE) > 128 || Math.abs(player.getZ() - CORE) > 128 || Math.abs(player.getY() - 316) > 32)))
             throw new IllegalStateException("gameplay world request identity/scope/replay mismatch");
         String stem = "gameplay-world-" + next + "-" + label;
         Files.move(request, root.resolve(stem + ".consumed")); sequence = next;
@@ -96,7 +102,11 @@ public final class GameplayWorldProbe {
         result.put("server_tick", player.server.getTickCount()); result.put("game_time", player.serverLevel().getGameTime()); result.put("day_time", player.serverLevel().getDayTime());
         result.put("native_day", player.serverLevel().isDay()); result.put("native_night", player.serverLevel().isNight());
         result.put("origin", "authored_fixture_using_public_native_apis");
-        switch (action) {
+        if (NativeDeviceBusWorldProbe.ACTIONS.contains(action)) result.put("native_probe", NativeDeviceBusWorldProbe.run(player,input));
+        else if (NativeKineticOverloadWorldProbe.ACTIONS.contains(action)) result.put("native_probe", NativeKineticOverloadWorldProbe.run(player,input));
+        else if (SystemsInteractionWorldProbe.ACTIONS.contains(action)) result.put("native_probe", SystemsInteractionWorldProbe.run(player,input));
+        else if (WorldHooksInteractionWorldProbe.ACTIONS.contains(action)) result.put("native_probe", WorldHooksInteractionWorldProbe.run(player,input));
+        else switch (action) {
             case "empty-hand" -> {
                 int empty = -1;
                 for (int slot = 0; slot < 9; slot++) if (player.getInventory().getItem(slot).isEmpty()) { empty = slot; break; }
@@ -105,6 +115,21 @@ public final class GameplayWorldProbe {
                 player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket(empty));
                 result.put("authored_selected_empty_slot", empty);
             }
+            case "lifecycle-start", "lifecycle-kill", "lifecycle-observe", "lifecycle-cancel-negative", "lifecycle-finish" -> result.put("native_probe", PlayerLifecycleInteractionProbe.run(player, input));
+            case "emi-inputs-empty", "emi-inputs-full" -> result.put("native_probe", EmiWorldProbe.inputs(player, action.equals("emi-inputs-full")));
+            case "structure-loot-personal" -> result.put("native_probe", StructureLootPersonalProbe.run(player, input));
+            case "emi-prepare" -> result.put("native_probe", EmiWorldProbe.prepare(player, input.get("path").getAsString()));
+            case "emi-verify-transfer" -> result.put("native_probe", EmiWorldProbe.verifyTransfer(player, input.get("recipe").getAsString()));
+            case "bees-setup" -> result.put("native_probe", ColonyWorldProbe.setup(player, input.get("state").getAsString()));
+            case "bees-observe" -> result.put("native_probe", ColonyWorldProbe.observe(player));
+            case "bees-dense" -> result.put("native_probe", ColonyWorldProbe.dense(player));
+            case "bees-unload" -> player.teleportTo(player.serverLevel(), CORE - 512, 316, CORE, 0, 0);
+            case "bees-return" -> player.teleportTo(player.serverLevel(), CORE, 316, CORE, 0, 0);
+            case "bees-range" -> player.teleportTo(player.serverLevel(), CORE - 24.5, 316, CORE + .5, -90, 0);
+            case "plant-stock-page", "plant-stock-finish" -> result.put("native_probe", PlantStockProbe.run(player, input));
+            case "plant-drink-start" -> result.put("native_probe", PlantDrinkProbe.start(player, input.get("case").getAsString()));
+            case "plant-drink-observe" -> result.put("native_probe", PlantDrinkProbe.observe(player));
+            case "structure-loot" -> result.put("native_probe", StructureLootProbe.run(player));
             case "campfires" -> campfires(player, result);
             case "campfire-view" -> campfireView(player, input.get("index").getAsInt(), input.has("signal") && input.get("signal").getAsBoolean(), result);
             case "field" -> field(player, input.get("index").getAsInt(), result);
@@ -160,17 +185,26 @@ public final class GameplayWorldProbe {
     }
     private static void field(ServerPlayer player, int index, Map<String, Object> result) {
         if (index < 0 || index >= FEATURES.length) throw new IllegalStateException("field index out of range");
-        var level = player.serverLevel(); var origin = new BlockPos(CORE + 48, 316, CORE);
+        var level = player.serverLevel();
+        var chunk = new net.minecraft.world.level.ChunkPos(new BlockPos(CORE + 48, 316, CORE));
+        var origin = new BlockPos(chunk.getMiddleBlockX(), 316, chunk.getMiddleBlockZ());
         bushes.clear();
-        for (int x = -16; x <= 16; x++) for (int z = -16; z <= 16; z++) {
+        // Selected supported source policy: 47x47 sparse field,30..42 bushes. Author
+        // complete ground around the native decoration-chunk centre, not the old29x29 patch.
+        for (int x = -24; x <= 24; x++) for (int z = -24; z <= 24; z++) {
             level.setBlock(origin.offset(x, -1, z), Blocks.GRASS_BLOCK.defaultBlockState(), 3);
             for (int y = 0; y <= 3; y++) level.setBlock(origin.offset(x, y, z), Blocks.AIR.defaultBlockState(), 3);
         }
         var feature = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE).get(new ResourceLocation(FEATURES[index]));
         if (feature == null || !(feature.feature() instanceof WildBushField)) throw new IllegalStateException("candidate missing configured WildBushField " + FEATURES[index]);
-        if (!feature.place(level, level.getChunkSource().getGenerator(), RandomSource.create(112), origin)) throw new IllegalStateException("native configured field failed");
+        // Fixed real native RNG seed5120 gives rarity128 roll0 then target33. This is an
+        // authored positive native configured-feature fixture, NOT a world-seed reroll.
+        // Never stub the RNG or retry placement until success.
+        if (RandomSource.create(5120).nextInt(com.bettercontent.betterwildfruittrees.WildFruitPolicy.FIELD_RARITY) != 0)
+            throw new IllegalStateException("selected native field rarity policy drifted");
+        if (!feature.place(level, level.getChunkSource().getGenerator(), RandomSource.create(5120), origin)) throw new IllegalStateException("native configured field failed");
         List<Map<String, Object>> shapes = new ArrayList<>();
-        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) {
+        for (int x = -24; x <= 24; x++) for (int z = -24; z <= 24; z++) {
             BlockPos pos = origin.offset(x, 0, z); var state = level.getBlockState(pos);
             if (!WildBushes.isBush(state)) continue;
             bushes.add(pos);
@@ -178,13 +212,13 @@ public final class GameplayWorldProbe {
                 if ((dx != 0 || dz != 0) && WildBushes.isBush(level.getBlockState(pos.offset(dx, 0, dz)))) throw new IllegalStateException("native field became dense hedge");
             shapes.add(Map.of("position", List.of(pos.getX(), pos.getY(), pos.getZ()), "state", state.toString(), "shape", state.getShape(level, pos).toAabbs().toString()));
         }
-        if (bushes.size() < 10 || bushes.size() > 14) throw new IllegalStateException("native field aggregate count " + bushes.size());
+        if (bushes.size() < 30 || bushes.size() > 42) throw new IllegalStateException("native field aggregate count " + bushes.size());
         int spanX = bushes.stream().mapToInt(BlockPos::getX).max().orElseThrow() - bushes.stream().mapToInt(BlockPos::getX).min().orElseThrow();
         int spanZ = bushes.stream().mapToInt(BlockPos::getZ).max().orElseThrow() - bushes.stream().mapToInt(BlockPos::getZ).min().orElseThrow();
-        if (spanX < 8 || spanZ < 8) throw new IllegalStateException("native bush field too compact");
-        result.put("configured_feature", FEATURES[index]); result.put("fixture_random_seed", 112); result.put("bushes", shapes); result.put("span_x", spanX); result.put("span_z", spanZ);
+        if (spanX < 16 || spanZ < 16) throw new IllegalStateException("native bush field too compact");
+        result.put("configured_feature", FEATURES[index]); result.put("fixture_random_seed", 5120); result.put("fixture_rarity_roll", 0); result.put("aggregate_policy", "native30..42,47x47 footprint,span>=16"); result.put("bushes", shapes); result.put("span_x", spanX); result.put("span_z", spanZ);
         // Authored camera pedestal is outside the field footprint, not fabricated bush geometry.
-        BlockPos pedestal = origin.offset(0, 2, 17); level.setBlock(pedestal, Blocks.GLASS.defaultBlockState(), 3);
+        BlockPos pedestal = origin.offset(0, 2, 25); level.setBlock(pedestal, Blocks.GLASS.defaultBlockState(), 3);
         player.teleportTo(level, pedestal.getX() + .5, pedestal.getY() + 1, pedestal.getZ() + .5, 180, 12);
     }
     private static void harvest(ServerPlayer player, Map<String, Object> result) {

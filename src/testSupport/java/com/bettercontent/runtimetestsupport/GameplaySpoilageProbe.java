@@ -96,7 +96,8 @@ public final class GameplaySpoilageProbe {
             require(player.containerMenu instanceof FishingRodMenu, "native rod menu did not open");
             out.put("menu_class", player.containerMenu.getClass().getName());
             out.put("menu_id", player.containerMenu.containerId);
-            out.put("human_pointer_verdict", "pending_separate_human_interaction");
+            out.put("human_pointer_verdict", "NOT_PERFORMED");
+            out.put("human_pointer_reason", "Native menu/API fixture only; no physical or synthetic pointer interaction performed");
             player.containerMenu.broadcastChanges();
         }
         player.inventoryMenu.broadcastChanges();

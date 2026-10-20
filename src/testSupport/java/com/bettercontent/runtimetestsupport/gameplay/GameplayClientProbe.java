@@ -72,6 +72,7 @@ public final class GameplayClientProbe {
         return dir;
     }
     public static boolean observing() { return ENABLED && !stopped; }
+    public static synchronized long nativeParticleCount(String type) { return PARTICLES.getOrDefault(type, 0L); }
 
     /** Called only by the native ParticleEngine observer, never creates or replaces particles. */
     public static synchronized void particle(String type, double x, double y, double z) {
@@ -154,7 +155,7 @@ public final class GameplayClientProbe {
                 || next <= sequence || !label.matches("[A-Za-z0-9_.-]{1,80}"))
             throw new IllegalStateException("gameplay client request identity/replay mismatch");
         String action = input.get("action").getAsString();
-        if (!List.of("arm", "capture", "look", "start-cut", "continue-cut", "stop-cut", "use-block", "close-menu", "exit", "stop").contains(action))
+        if (!List.of("arm", "capture", "look", "start-cut", "continue-cut", "stop-cut", "use-block", "close-menu", "bee-window-start", "bee-window-observe", "bee-window-finish", "plant-stock-ready", "emi-personal-open", "emi-equipment-ready", "emi-menu-ready", "emi-order", "emi-snapshot-held", "emi-snapshot-reopen", "emi-inputs-ready", "emi-explicit-focus", "emi-fill", "lifecycle-respawn", "lifecycle-observe", "exit", "stop").contains(action))
             throw new IllegalStateException("unknown gameplay client action");
         if (stopped) throw new IllegalStateException("gameplay client session already stopped");
         Files.move(request, root.resolve("gameplay-client-" + next + "-" + label + ".consumed"));
@@ -173,9 +174,52 @@ public final class GameplayClientProbe {
             GameplayCutDriver.stop(mc);
             result.put("observations", observations()); stopped = true;
         } else {
-            requireFixturePosition(mc);
+            boolean colonyUnloadPosition = action.startsWith("bee-window-") && Math.abs(mc.player.getX() - 999488) < 2
+                    && Math.abs(mc.player.getZ() - 1000000) < 2 && Math.abs(mc.player.getY() - 316) < 4
+                    && mc.level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD);
+            if (!List.of("lifecycle-respawn", "lifecycle-observe").contains(action) && !colonyUnloadPosition) requireFixturePosition(mc);
             if (List.of("look", "close-menu", "use-block").contains(action)) GameplayCutDriver.stop(mc);
-            if (action.equals("look")) {
+            if (NativeKineticOverloadClientProbe.ACTIONS.contains(action)) {
+                result.put("native_probe", NativeKineticOverloadClientProbe.run(mc,input));
+            } else if (SystemsInteractionClientProbe.ACTIONS.contains(action)) {
+                result.put("native_probe", SystemsInteractionClientProbe.run(mc,input));
+            } else if (WorldHooksInteractionClientProbe.ACTIONS.contains(action)) {
+                result.put("native_probe", WorldHooksInteractionClientProbe.run(mc,input));
+            } else if (List.of("lifecycle-respawn", "lifecycle-observe").contains(action)) {
+                result.put("native_probe", PlayerLifecycleClientProbe.run(mc, input));
+            } else if (action.equals("plant-stock-ready")) {
+                var items = input.getAsJsonArray("items");
+                if (items.size() != 36) throw new IllegalStateException("native stock page needs exact inventory slot vector");
+                boolean ready = mc.player.containerMenu == mc.player.inventoryMenu && mc.screen == null;
+                for (int i = 0; i < 36; i++) {
+                    var stack = mc.player.getInventory().getItem(i);
+                    String id = net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(stack.getItem()).toString();
+                    ready &= id.equals(items.get(i).getAsString()) && stack.getCount() == (stack.isEmpty() ? 0 : 1);
+                }
+                result.put("native_probe", Map.of("ready", ready, "origin", "native main inventory slot packet values and closed authoritative menu"));
+            } else if (action.equals("emi-personal-open")) {
+                result.put("native_probe", EmiClientProbe.openPersonal(mc));
+            } else if (action.equals("emi-equipment-ready")) {
+                result.put("native_probe", EmiClientProbe.equipmentReady(mc, input.get("path").getAsString()));
+            } else if (action.equals("emi-snapshot-held") || action.equals("emi-snapshot-reopen")) {
+                result.put("native_probe", EmiClientProbe.snapshotChanged(mc, action.equals("emi-snapshot-reopen")));
+            } else if (action.equals("emi-inputs-ready")) {
+                result.put("native_probe", EmiClientProbe.inputsReady(mc));
+            } else if (action.equals("emi-menu-ready")) {
+                result.put("native_probe", EmiClientProbe.ready(mc, input.get("path").getAsString()));
+            } else if (action.equals("emi-order")) {
+                result.put("native_probe", EmiClientProbe.order(mc));
+            } else if (action.equals("emi-explicit-focus")) {
+                result.put("native_probe", EmiClientProbe.explicitFocus(mc));
+            } else if (action.equals("emi-fill")) {
+                result.put("native_probe", EmiClientProbe.fill(mc, input.get("separate").getAsBoolean()));
+            } else if (action.equals("bee-window-start")) {
+                result.put("native_probe", ColonyClientProbe.start(mc, input.get("state").getAsString(), input.get("control").getAsString()));
+            } else if (action.equals("bee-window-observe")) {
+                result.put("native_probe", ColonyClientProbe.observe(mc));
+            } else if (action.equals("bee-window-finish")) {
+                result.put("native_probe", ColonyClientProbe.finish(mc));
+            } else if (action.equals("look")) {
                 float yaw = input.get("yaw").getAsFloat(), pitch = input.get("pitch").getAsFloat();
                 if (!Float.isFinite(yaw) || !Float.isFinite(pitch) || pitch < -90 || pitch > 90)
                     throw new IllegalStateException("invalid authored camera orientation");
@@ -233,6 +277,7 @@ public final class GameplayClientProbe {
         Map<String, Object> result = identity(input);
         result.put("framebuffer", image.getFileName().toString());
         result.put("framebuffer_width", mc.getMainRenderTarget().width); result.put("framebuffer_height", mc.getMainRenderTarget().height);
+        result.put("gui_scale", mc.getWindow().getGuiScale());
         result.put("renderer", Map.of("vendor", GL11.glGetString(GL11.GL_VENDOR), "renderer", GL11.glGetString(GL11.GL_RENDERER),
                 "version", GL11.glGetString(GL11.GL_VERSION), "gl_current_program", GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM)));
         result.put("native_post_effect", mc.gameRenderer.currentEffect() == null ? "none" : mc.gameRenderer.currentEffect().getName());
@@ -269,8 +314,10 @@ public final class GameplayClientProbe {
         row.put("sequence", sequence); row.put("label", input.get("label").getAsString()); row.put("action", input.get("action").getAsString());
         row.put("player", input.get("player").getAsString()); row.put("utc", Instant.now().toString()); row.put("tick", ticks); row.put("frame", frames);
         row.put("audio_backend_environment", System.getenv().getOrDefault("ALSOFT_DRIVERS", "unspecified"));
-        row.put("physical_audio_verdict", "UNKNOWN: native sound dispatch is not proof of audible output");
-        row.put("human_pointer_verdict", "NOT_PERFORMED: no synthetic pointer/mouse/scroll/resize");
+        row.put("physical_audio_verdict", "NOT_PERFORMED");
+        row.put("physical_audio_reason", "No physical listening performed; native sound dispatch is not proof of audible output");
+        row.put("human_pointer_verdict", "NOT_PERFORMED");
+        row.put("human_pointer_reason", "No physical or synthetic pointer/mouse/scroll/resize performed");
         return row;
     }
     private static Map<String, Object> observations() {
