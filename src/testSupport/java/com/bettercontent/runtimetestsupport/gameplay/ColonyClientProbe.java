@@ -17,10 +17,12 @@ import java.util.Map;
 public final class ColonyClientProbe {
     private static final BlockPos POS = new BlockPos(1_000_008, 316, 1_000_000);
     private static String state, mode;
-    private static long startTick, creation, submission, requests;
+    private static long startTick, creation, submission, requests, legacyCreation, tintedCreation;
     private static int density;
     private static ParticleStatus particles;
-    private static boolean completed;
+    private static boolean completed, colorWindow;
+    private static int expectedRgb;
+    private static String expectedSpecies;
     private ColonyClientProbe() {}
     private static boolean expected() { return state.equals("occupied-nest") || state.equals("active-apiary"); }
     private static boolean nativeOccupied(Minecraft mc) {
@@ -36,8 +38,29 @@ public final class ColonyClientProbe {
         density = BcFixesClientConfig.BEE_SWARM_DENSITY.get(); particles = mc.options.particles().get();
         BcFixesClientConfig.BEE_SWARM_DENSITY.set(control.equals("disabled") ? 0 : control.equals("dense") ? 4 : 2);
         mc.options.particles().set(control.equals("minimal") ? ParticleStatus.MINIMAL : control.equals("reduced") ? ParticleStatus.DECREASED : ParticleStatus.ALL);
-        startTick = -1; completed = false;
+        startTick = -1; completed = false; colorWindow = false; expectedSpecies = null; expectedRgb = 0;
         return Map.of("armed", true, "state", state, "control", mode);
+    }
+    /** Additive native-color window; caller binds expected values to the independent server receipt. */
+    public static Map<String, Object> startColor(Minecraft mc, String kind, String control, String speciesId, int rgb) {
+        boolean positive = kind.equals("occupied-nest") || kind.equals("active-apiary");
+        if (positive ? (!List.of("complicated_bees:forest", "complicated_bees:plains").contains(speciesId) || rgb < 0 || rgb > 0xffffff)
+                : (!speciesId.equals("invalid") || rgb != -1)) throw new IllegalStateException("Invalid native species/color receipt binding");
+        var result = new java.util.LinkedHashMap<String, Object>(start(mc, kind, control));
+        colorWindow = true; expectedSpecies = speciesId; expectedRgb = rgb;
+        result.put("native_expected_species_id", speciesId); result.put("native_expected_rgb", rgb);
+        return result;
+    }
+    private static String colorMismatch(Minecraft mc) {
+        if (!colorWindow) return null;
+        var entity = mc.level.getBlockEntity(POS);
+        var appearance = ColonySwarms.bodyColor(entity);
+        if (!expected()) return appearance.known() || appearance.rgb() != 0 ? "known tint after invalidation" : null;
+        if (!appearance.known() || appearance.rgb() != expectedRgb) return "native body RGB/primitive metadata sync";
+        if (entity instanceof BeeNestBlockEntity nest && (nest.getSpecies().getColor() != expectedRgb
+                || !com.accbdd.complicated_bees.registry.SpeciesRegistration.getResourceLocation(nest.getSpecies()).toString().equals(expectedSpecies)))
+            return "native nest species sync";
+        return null;
     }
     public static Map<String, Object> observe(Minecraft mc) {
         if (state == null) throw new IllegalStateException("native colony observer unarmed");
@@ -60,15 +83,27 @@ public final class ColonyClientProbe {
                 if (colonies != 675) return Map.of("ready", false, "waiting", "all 675 actual native colony block entities", "loaded_occupied", colonies);
             }
         }
+        if (colorWindow && !mode.equals("unload")) {
+            String mismatch = colorMismatch(mc);
+            if (mismatch != null) {
+                if (startTick >= 0) throw new IllegalStateException("Native color changed during armed100tick window: " + mismatch);
+                return Map.of("ready", false, "waiting", mismatch);
+            }
+        }
         if (startTick < 0) {
             startTick = mc.level.getGameTime();
-            creation = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee");
+            legacyCreation = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee");
+            tintedCreation = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee_tinted_v1");
+            creation = legacyCreation + tintedCreation;
             submission = GameplayClientProbe.nativeParticleCount("submitted:com.bettercontent.bettercompatfixes.client.bees.ColonyBeeParticle");
             requests = ColonySwarms.emittedCount();
         }
         long elapsed = mc.level.getGameTime() - startTick;
         if (elapsed < 100) return Map.of("ready", false, "elapsed_native_ticks", elapsed);
-        long created = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee") - creation;
+        long legacy = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee") - legacyCreation;
+        long tinted = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee_tinted_v1") - tintedCreation;
+        long created = GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee")
+                + GameplayClientProbe.nativeParticleCount("better_compat_fixes:colony_bee_tinted_v1") - creation;
         long added = GameplayClientProbe.nativeParticleCount("submitted:com.bettercontent.bettercompatfixes.client.bees.ColonyBeeParticle") - submission;
         long emitted = ColonySwarms.emittedCount() - requests;
         {
@@ -78,9 +113,20 @@ public final class ColonyClientProbe {
             long maximum = 8 * (elapsed / 10 + 1); // Inclusive native ten-tick phase boundary.
             if (emitted > maximum || created > maximum || added > maximum) throw new IllegalStateException("native colony bounded emission window exceeded 8 per ten ticks");
             completed = true;
-            return Map.of("ready", true, "state", state, "control", mode, "native_occupied", occupied,
+            var result = new java.util.LinkedHashMap<String, Object>(Map.of("ready", true, "state", state, "control", mode, "native_occupied", occupied,
                 "native_ticks", elapsed, "engine_creations", created, "engine_submissions", added, "emission_requests", emitted,
-                "native_chunk_loaded", loaded, "visual_verdict", "PENDING_LLM_FRAMEBUFFER_REVIEW");
+                "native_chunk_loaded", loaded, "visual_verdict", "PENDING_LLM_FRAMEBUFFER_REVIEW"));
+            result.put("engine_creations_legacy", legacy);
+            result.put("engine_creations_tinted_v1", tinted);
+            if (colorWindow) {
+                if (positive && (tinted <= 0 || legacy != 0)) throw new IllegalStateException("New native-color window requires typed engine creations and zero legacy creations");
+                var appearance = loaded ? ColonySwarms.bodyColor(mc.level.getBlockEntity(POS))
+                        : com.bettercontent.bettercompatfixes.compat.bees.DecodedColorScope.Sample.UNKNOWN;
+                result.put("native_expected_species_id", expectedSpecies); result.put("native_expected_rgb", expectedRgb);
+                result.put("cosmetic_color_known", appearance.known()); result.put("cosmetic_body_rgb", appearance.rgb());
+                result.put("native_color_agreement", mode.equals("unload") ? !appearance.known() : colorMismatch(mc) == null);
+            }
+            return result;
         }
     }
     public static Map<String, Object> finish(Minecraft mc) {

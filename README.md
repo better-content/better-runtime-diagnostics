@@ -69,8 +69,20 @@ recipes use the same runtime-selector model. Fluid brewing, uncrafting result
 grids, entity/ritual effects, entropy world-state changes, and intentional
 outputless processing are represented as their own typed operations.
 
-The command is intentionally the only trigger. The mod performs no work during
+The command is intentionally the only export trigger. The mod performs no export scanning during
 startup, reload, or player synchronization.
+
+## Bounded playtest diagnostics
+
+Loader SLF4J `bc.playtest.better_runtime_diagnostics.*` emits one INFO startup/source status
+(UNKNOWN if exact own metadata is unavailable). DEBUG records operator-command start and actual
+exporter return: complete/incomplete/failed, existing snapshot identity, counts and monotonic
+elapsed time. No automatic exports, payload dumps, absolute output paths or exception-message
+copies are introduced; existing failure messages and parser witnesses remain unchanged.
+One shared 120/minute burst20 detail bucket, 256 aggregate keys, 2048-character records and
+30-second summaries bound logging. Disconnect/server stop clears aggregate state without
+refilling allowance. Standalone remains INFO; the pack selects scoped DEBUG. Completion records
+never replace snapshot completeness checks or native runtime acceptance.
 
 `/runtimedata combat` separately exports `combat-profile.json`. It samples the
 default armor, toughness, and health of every constructible entity identified
@@ -127,6 +139,26 @@ helpers remain supplement-only, never production/candidate content. New fixture 
 use named local Ivy providers (ForgeGradle does not deobfuscate `files(...)` dependencies);
 canonical `BC_CUSTOM_MOD_JAR_DIR` stages override the declared standalone SDK sources. See the
 [shared gameplay procedure](../../better-content-modpack/docs/testing.md).
+
+### Additive native bee-body color fixture
+
+The existing nonce/candidate-bound gameplay supplement preserves all bee states, controls,
+deadlines, dense675/unload/reconnect handling and100actual-client-tick windows. Optional
+`species_id` on `bees-setup` selects native `complicated_bees:forest` or `complicated_bees:plains`;
+absence preserves the old forest default. `bees-species-change` updates the same authored native
+nest or resident queen via native setters/factory/handler; sentinel `invalid` clears it. Neither
+route forces climate, weather, time or genes. Native eligibility still has the existing20minute
+bound; added appearance readiness does not redefine the old `ready` field.
+
+Server observation adds actual native body/nest colors, species/climate and primitive cosmetic
+state. A separately guarded nonshipping queen oracle uses native expressed-species decoding and
+checks authored queen tags before/after; it is not an extra production decode or a NBT export.
+Paired `expected_species_id`/`expected_native_rgb` on `bee-window-start` opt into color agreement
+through the existing window. Positive color windows additionally require actual typed-particle
+creation and no legacy creation. Old `engine_creations` remains the total; additive legacy/typed
+counts distinguish the protocols. Requests and source pixels are not engine/render acceptance.
+Same-candidate frames of native occupied nests **and resident queens**, real eligibility,
+in-place invalidation and existing lifecycle/control acceptance remain required.
 
 ### Read-only native whale receipt
 

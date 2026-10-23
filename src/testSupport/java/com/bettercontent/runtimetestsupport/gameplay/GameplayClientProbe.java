@@ -214,7 +214,12 @@ public final class GameplayClientProbe {
             } else if (action.equals("emi-fill")) {
                 result.put("native_probe", EmiClientProbe.fill(mc, input.get("separate").getAsBoolean()));
             } else if (action.equals("bee-window-start")) {
-                result.put("native_probe", ColonyClientProbe.start(mc, input.get("state").getAsString(), input.get("control").getAsString()));
+                if (input.has("expected_native_rgb") != input.has("expected_species_id"))
+                    throw new IllegalStateException("Native color expectation requires both species and RGB receipt fields");
+                result.put("native_probe", input.has("expected_native_rgb")
+                        ? ColonyClientProbe.startColor(mc, input.get("state").getAsString(), input.get("control").getAsString(),
+                                input.get("expected_species_id").getAsString(), input.get("expected_native_rgb").getAsInt())
+                        : ColonyClientProbe.start(mc, input.get("state").getAsString(), input.get("control").getAsString()));
             } else if (action.equals("bee-window-observe")) {
                 result.put("native_probe", ColonyClientProbe.observe(mc));
             } else if (action.equals("bee-window-finish")) {

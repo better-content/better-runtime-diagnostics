@@ -120,7 +120,10 @@ public final class GameplayWorldProbe {
             case "structure-loot-personal" -> result.put("native_probe", StructureLootPersonalProbe.run(player, input));
             case "emi-prepare" -> result.put("native_probe", EmiWorldProbe.prepare(player, input.get("path").getAsString()));
             case "emi-verify-transfer" -> result.put("native_probe", EmiWorldProbe.verifyTransfer(player, input.get("recipe").getAsString()));
-            case "bees-setup" -> result.put("native_probe", ColonyWorldProbe.setup(player, input.get("state").getAsString()));
+            case "bees-setup" -> result.put("native_probe", input.has("species_id")
+                    ? ColonyWorldProbe.setup(player, input.get("state").getAsString(), input.get("species_id").getAsString())
+                    : ColonyWorldProbe.setup(player, input.get("state").getAsString()));
+            case "bees-species-change" -> result.put("native_probe", ColonyWorldProbe.changeSpecies(player, input.get("species_id").getAsString()));
             case "bees-observe" -> result.put("native_probe", ColonyWorldProbe.observe(player));
             case "bees-dense" -> result.put("native_probe", ColonyWorldProbe.dense(player));
             case "bees-unload" -> player.teleportTo(player.serverLevel(), CORE - 512, 316, CORE, 0, 0);

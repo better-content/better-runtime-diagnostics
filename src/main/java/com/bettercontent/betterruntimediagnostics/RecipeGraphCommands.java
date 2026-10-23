@@ -1,5 +1,8 @@
 package com.bettercontent.betterruntimediagnostics;
 
+import com.bettercontent.betterruntimediagnostics.diagnostics.PlaytestDiagnostics;
+import com.bettercontent.betterruntimediagnostics.diagnostics.ExportOutcome;
+import com.bettercontent.betterruntimediagnostics.diagnostics.PlaytestLog;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -14,7 +17,18 @@ public final class RecipeGraphCommands {
         var root = Commands.literal("runtimedata")
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("dump").executes(context -> {
+                    boolean observing = PlaytestDiagnostics.LOG.enabled("export");
+                    long started = observing ? System.nanoTime() : 0;
+                    if (observing) PlaytestDiagnostics.LOG.event("export", "dump.started", "server", "started", "operator_command", null);
                     var result = RecipeGraphExporter.dump(context.getSource().getServer());
+                    if (observing) {
+                        PlaytestDiagnostics.LOG.event("export", "dump.completed", "server",
+                                ExportOutcome.dump(result.success(), result.complete()),
+                                result.success() ? "exporter_returned" : "exporter_failure",
+                                () -> PlaytestLog.fields("snapshot", result.snapshotId(), "recipes", result.recipeCount(),
+                                        "partial", result.partialCount(), "errors", result.errorCount(),
+                                        "elapsed_ms", (System.nanoTime() - started) / 1_000_000));
+                    }
                     if (result.success()) {
                         context.getSource().sendSuccess(() -> Component.literal(
                                 "Recipe graph " + result.snapshotId() + ": " + result.recipeCount()
@@ -32,7 +46,15 @@ public final class RecipeGraphCommands {
                     return 0;
                 }))
                 .then(Commands.literal("combat").executes(context -> {
+                    boolean observing = PlaytestDiagnostics.LOG.enabled("export");
+                    long started = observing ? System.nanoTime() : 0;
                     var result = CombatProfileExporter.dump(context.getSource().getServer());
+                    if (observing) {
+                        PlaytestDiagnostics.LOG.event("export", "combat.completed", "server", ExportOutcome.combat(result.success()),
+                                result.success() ? "exporter_returned" : "exporter_failure",
+                                () -> PlaytestLog.fields("samples", result.sampledEntities(), "excluded_bosses", result.excludedBosses(),
+                                        "errors", result.errors(), "elapsed_ms", (System.nanoTime() - started) / 1_000_000));
+                    }
                     if (result.success()) {
                         context.getSource().sendSuccess(() -> Component.literal(
                                 "Combat profile: " + result.sampledEntities() + " hostile samples, "
