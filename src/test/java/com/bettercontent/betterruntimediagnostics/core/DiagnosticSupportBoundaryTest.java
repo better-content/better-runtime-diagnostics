@@ -31,11 +31,21 @@ class DiagnosticSupportBoundaryTest {
 
     private static void assertBoundary(Path relative, String source) {
         boolean driver = DRIVER.equals(relative);
-        // Authored native queen admission is not player/storage manipulation. Permit this
-        // exact public bee-inventory operation in this one fixture only; all other slot
-        // writes remain forbidden, including additional writes in the same source file.
-        if (relative.equals(Path.of("gameplay/ColonyWorldProbe.java")))
-            source = source.replace("apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get()));", "");
+        // Authored native queen setup/transition is not player/storage manipulation. Permit
+        // only these exact public bee-slot actions, each at most once in this fixture. All
+        // additional writes, changed slots/factories and copies into other observers fail.
+        if (relative.equals(Path.of("gameplay/ColonyWorldProbe.java"))) {
+            source = compact(source);
+            for (String action : List.of(
+                    "apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get()));",
+                    "apiary.getBeeItems().setStackInSlot(0, species == Species.INVALID ? net.minecraft.world.item.ItemStack.EMPTY : species.toStack(ItemsRegistration.QUEEN.get()));")) {
+                String exact = compact(action);
+                int start = source.indexOf(exact);
+                if (start < 0) continue;
+                assertEquals(start, source.lastIndexOf(exact), "authored bee action must occur at most once");
+                source = source.substring(0, start) + source.substring(start + exact.length());
+            }
+        }
         for (String token : List.of("bc.native.inventory", "bc.journal.contract", "NativeContract", "NativeCheckpoint",
                 "NativeClientPacketMixin", "setStackInSlot", "setInvulnerable", "callback.cancel",
                 "callback.setReturnValue", "entity.setYRot", "entity.setXRot"))
@@ -126,6 +136,13 @@ class DiagnosticSupportBoundaryTest {
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("GameplaySpoilageProbe.java"), "inventory.setStackInSlot(0, stack);"));
         assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), "apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get()));");
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), "apiary.getBeeItems().setStackInSlot(0, species.toStack(ItemsRegistration.QUEEN.get())); inventory.setStackInSlot(0, stack);"));
+        String transition = "apiary.getBeeItems().setStackInSlot(0, species == Species.INVALID ? net.minecraft.world.item.ItemStack.EMPTY : species.toStack(ItemsRegistration.QUEEN.get()));";
+        assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition);
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition + transition));
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition.replace("setStackInSlot(0", "setStackInSlot(1")));
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition.replace("ItemsRegistration.QUEEN", "ItemsRegistration.DRONE")));
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/OtherProbe.java"), transition));
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition + "inventory.setStackInSlot(0, stack);"));
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("diagnostics/GameplayParticleMixin.java"), "@Inject(cancellable=true) void observe() { ci.cancel(); }"));
     }
 
