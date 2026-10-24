@@ -1,10 +1,6 @@
 # Better Runtime Diagnostics
 
-## Scope and authority
-
-This repository owns its mod-specific behavior and authoring inputs. Read [local instructions](AGENTS.md)
-and the [shared documentation/policy index](../../better-content-modpack/docs/README.md).
-
+## Scope
 
 Server-authoritative Forge 1.20.1 diagnostic mod. An operator can run
 `/runtimedata dump` to export the final live recipe manager, registries, tags,
