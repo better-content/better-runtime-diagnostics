@@ -1,4 +1,6 @@
-package com.bettercontent.runtimetestsupport.diagnostics;
+package com.bettercontent.runtimetestsupport.mixin.diagnostics;
+
+import com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixinPlugin;
 
 import java.util.Arrays;
 import java.util.HashSet;

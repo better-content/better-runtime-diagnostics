@@ -1,4 +1,4 @@
-package com.bettercontent.runtimetestsupport.diagnostics;
+package com.bettercontent.runtimetestsupport.mixin.diagnostics;
 
 import com.bettercontent.runtimetestsupport.gameplay.GameplayClientProbe;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;

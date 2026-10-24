@@ -1,16 +1,16 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.bettercontent.runtimetestsupport",
+  "package": "com.bettercontent.runtimetestsupport.mixin",
   "plugin": "com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixinPlugin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "better_runtime_test_support.refmap.json",
   "mixins": ["diagnostics.NonfiniteRotationMixin", "diagnostics.UntamedSpeciesObservationMixin",
-    "gameplay.WorldHooksInteractionWorldProbe$ExplosionRadiusAccess",
-    "gameplay.WorldHooksInteractionWorldProbe$BuriedTrackerObservationMixin",
-    "gameplay.WorldHooksInteractionWorldProbe$BuriedSpawnerObservationMixin",
-    "gameplay.WorldHooksInteractionWorldProbe$NativeEngineObservationMixin",
-    "gameplay.WorldHooksInteractionWorldProbe$NativeCraterObservationMixin"],
+    "gameplay.ExplosionRadiusAccess",
+    "gameplay.BuriedTrackerObservationMixin",
+    "gameplay.BuriedSpawnerObservationMixin",
+    "gameplay.NativeEngineObservationMixin",
+    "gameplay.NativeCraterObservationMixin"],
   "client": ["diagnostics.GameplayParticleMixin", "diagnostics.GameplayCutMixin", "diagnostics.GameplayCutDriverMixin"],
   "injectors": {"defaultRequire": 1}
 }

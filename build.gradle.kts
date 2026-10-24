@@ -176,23 +176,23 @@ val verifyTestSupportIsolation by tasks.registering {
         ZipFile(testSupportJar.get().archiveFile.get().asFile).use { jar ->
             val config=jar.getInputStream(requireNotNull(jar.getEntry("better_runtime_test_support.mixins.json"))).reader().use { com.google.gson.JsonParser.parseReader(it).asJsonObject }
             val worldObservers = listOf("ExplosionRadiusAccess", "BuriedTrackerObservationMixin", "BuriedSpawnerObservationMixin", "NativeEngineObservationMixin", "NativeCraterObservationMixin")
-            require(config.get("package").asString == "com.bettercontent.runtimetestsupport") { "Unexpected observer package" }
-            require(config.getAsJsonArray("mixins").map { it.asString } == listOf("diagnostics.NonfiniteRotationMixin","diagnostics.UntamedSpeciesObservationMixin") + worldObservers.map { "gameplay.WorldHooksInteractionWorldProbe\$$it" }) { "Unexpected diagnostic observers" }
+            require(config.get("package").asString == "com.bettercontent.runtimetestsupport.mixin") { "Unexpected observer package" }
+            require(config.getAsJsonArray("mixins").map { it.asString } == listOf("diagnostics.NonfiniteRotationMixin","diagnostics.UntamedSpeciesObservationMixin") + worldObservers.map { "gameplay.$it" }) { "Unexpected diagnostic observers" }
             val gameplayObservers = listOf("GameplayParticleMixin", "GameplayCutMixin")
             require(config.getAsJsonArray("client").map { it.asString } == (gameplayObservers + "GameplayCutDriverMixin").map { "diagnostics.$it" }) { "Unexpected gameplay hooks" }
             val refmap=jar.getInputStream(requireNotNull(jar.getEntry("better_runtime_test_support.refmap.json"))).reader().use { com.google.gson.JsonParser.parseReader(it).asJsonObject }
             for(mapping in listOf(refmap.getAsJsonObject("mappings"),refmap.getAsJsonObject("data").getAsJsonObject("searge"))) {
-                val radius=mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/gameplay/WorldHooksInteractionWorldProbe\$ExplosionRadiusAccess")
+                val radius=mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/mixin/gameplay/ExplosionRadiusAccess")
                 require(radius.get("radius").asString == "f_46017_:F") { "Native Explosion radius accessor is unmapped" }
-                val rotation=mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/diagnostics/NonfiniteRotationMixin")
+                val rotation=mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/mixin/diagnostics/NonfiniteRotationMixin")
                 require(rotation.get("setYRot(F)V").asString == "Lnet/minecraft/world/entity/Entity;m_146922_(F)V" && rotation.get("setXRot(F)V").asString == "Lnet/minecraft/world/entity/Entity;m_146926_(F)V") { "Rotation observers are unmapped" }
                 for (name in gameplayObservers + "GameplayCutDriverMixin") {
-                    val hooks = mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/diagnostics/$name")
+                    val hooks = mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/mixin/diagnostics/$name")
                     require(hooks != null && hooks.entrySet().any { it.value.asString.contains(";m_") }) { "Gameplay hook $name has no mapped native method" }
                 }
             }
-            val observerClasses = (listOf("NonfiniteRotationMixin","UntamedSpeciesObservationMixin") + gameplayObservers).map { "diagnostics/$it" } + worldObservers.map { "gameplay/WorldHooksInteractionWorldProbe\$$it" }
-            for(name in observerClasses) jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/$name.class"))).use { input ->
+            val observerClasses = (listOf("NonfiniteRotationMixin","UntamedSpeciesObservationMixin") + gameplayObservers).map { "diagnostics/$it" } + worldObservers.map { "gameplay/$it" }
+            for(name in observerClasses) jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/mixin/$name.class"))).use { input ->
                 ClassReader(input).accept(object:ClassVisitor(Opcodes.ASM9){
                     override fun visitMethod(access:Int,method:String?,descriptor:String?,signature:String?,exceptions:Array<out String>?):MethodVisitor=object:MethodVisitor(Opcodes.ASM9){
                         override fun visitAnnotation(descriptor:String,visible:Boolean):AnnotationVisitor? = if(descriptor=="Lorg/spongepowered/asm/mixin/injection/Inject;")object:AnnotationVisitor(Opcodes.ASM9){override fun visit(key:String?,value:Any?){require(!(key=="cancellable"&&value==true)){"Observer can cancel gameplay"}}}else null
@@ -230,7 +230,7 @@ val verifyTestSupportIsolation by tasks.registering {
             // The only reviewed gameplay mutation is the explicit bound native hold driver.
             // Keep it separate from the read-only observers; prohibit any other method call,
             // field mutation, injection target or priority in this small cancellation hook.
-            jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/diagnostics/GameplayCutDriverMixin.class"))).use { input ->
+            jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/mixin/diagnostics/GameplayCutDriverMixin.class"))).use { input ->
                 var priority = 0
                 var injections = 0
                 val cancellableTargets = mutableListOf<String>()

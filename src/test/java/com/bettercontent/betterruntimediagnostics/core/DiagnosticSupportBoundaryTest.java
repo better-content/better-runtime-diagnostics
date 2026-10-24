@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DiagnosticSupportBoundaryTest {
     private static final Path ROOT = Path.of("src/testSupport/java/com/bettercontent/runtimetestsupport");
-    private static final Path DRIVER = Path.of("diagnostics/GameplayCutDriverMixin.java");
+    private static final Path DRIVER = Path.of("mixin/diagnostics/GameplayCutDriverMixin.java");
 
     // A reviewed authored action, never a passive observer. Pin the entire hook body so that
     // its single cancellation cannot migrate to another target, become unconditional, or write storage.
@@ -108,12 +108,50 @@ class DiagnosticSupportBoundaryTest {
             public static boolean gameplayMixin(String target, String mixin, String mode, boolean requested) {
                 if (!requested || !"debug".equals(mode)) return false;
                 if ("net.minecraft.client.particle.ParticleEngine".equals(target))
-                    return "com.bettercontent.runtimetestsupport.diagnostics.GameplayParticleMixin".equals(mixin);
+                    return "com.bettercontent.runtimetestsupport.mixin.diagnostics.GameplayParticleMixin".equals(mixin);
                 return "net.minecraft.client.multiplayer.MultiPlayerGameMode".equals(target)
-                    && Set.of("com.bettercontent.runtimetestsupport.diagnostics.GameplayCutMixin",
-                        "com.bettercontent.runtimetestsupport.diagnostics.GameplayCutDriverMixin").contains(mixin);
+                    && Set.of("com.bettercontent.runtimetestsupport.mixin.diagnostics.GameplayCutMixin",
+                        "com.bettercontent.runtimetestsupport.mixin.diagnostics.GameplayCutDriverMixin").contains(mixin);
             }
             """)), "exact client target plus Debug opt-in");
+    }
+
+    @Test void reservedNamespaceContainsExactlyRegisteredMixinTypes() throws Exception {
+        String reserved = "com.bettercontent.runtimetestsupport.mixin";
+        String config = Files.readString(Path.of("src/testSupport/resources/better_runtime_test_support.mixins.json"));
+        assertTrue(config.contains("\"package\": \"" + reserved + "\""));
+        assertTrue(config.contains("\"plugin\": \"com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixinPlugin\""));
+        var registered = new java.util.HashSet<String>();
+        var names = java.util.regex.Pattern.compile("\"((?:diagnostics|gameplay)\\.[A-Za-z]+)\"").matcher(config);
+        while (names.find()) assertTrue(registered.add(reserved + "." + names.group(1)), "duplicate mixin");
+        assertEquals(10, registered.size());
+        var actual = new java.util.HashSet<String>();
+        for (Path sourceRoot : List.of(Path.of("src/testSupport/java"), Path.of("src/testSupportPure/java"))) {
+            try (var paths = Files.walk(sourceRoot)) {
+                for (Path path : paths.filter(p -> p.toString().endsWith(".java")).toList()) {
+                    String source = Files.readString(path);
+                    var namespace = java.util.regex.Pattern.compile("(?m)^package ([\\w.]+);").matcher(source);
+                    assertTrue(namespace.find(), path.toString());
+                    String name = path.getFileName().toString().replace(".java", "");
+                    String qualified = namespace.group(1) + "." + name;
+                    boolean inside = namespace.group(1).equals(reserved) || namespace.group(1).startsWith(reserved + ".");
+                    boolean mixin = java.util.regex.Pattern.compile("@Mixin\\s*\\(").matcher(source).find();
+                    assertEquals(inside, mixin, "normal helpers/entrypoints/plugins cannot occupy reserved namespace: " + path);
+                    assertEquals(qualified.replace('.', '/') + ".java", sourceRoot.relativize(path).toString().replace('\\', '/'));
+                    if (inside) {
+                        assertFalse(source.contains("@Mod("));
+                        assertFalse(source.contains("implements IMixinConfigPlugin"));
+                        assertTrue(java.util.regex.Pattern.compile("(?m)^public (?:abstract )?(?:class|interface) " + name + "\\b").matcher(source).find());
+                        actual.add(qualified);
+                    }
+                }
+            }
+        }
+        assertEquals(registered, actual);
+        String entrypoint = Files.readString(ROOT.resolve("RuntimeTestSupport.java"));
+        assertTrue(entrypoint.contains("package com.bettercontent.runtimetestsupport;"));
+        assertTrue(entrypoint.contains("@Mod("));
+        assertFalse(Files.readString(ROOT.resolve("gameplay/WorldHooksInteractionWorldProbe.java")).contains("@Mixin("));
     }
 
     @Test void authoredHoldRemainsBoundAndOptIn() throws Exception {
@@ -124,7 +162,7 @@ class DiagnosticSupportBoundaryTest {
     @Test void actionExceptionCannotLeakIntoObserversOrOtherOperations() throws Exception {
         String driver = Files.readString(ROOT.resolve(DRIVER));
         assertBoundary(DRIVER, driver);
-        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("diagnostics/GameplayCutMixin.java"), driver));
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("mixin/diagnostics/GameplayCutMixin.java"), driver));
         for (String mutated : List.of(
                 driver.replace("if (GameplayCutDriver.suppressUnrelatedRelease()) ", ""),
                 driver.replace("method = \"stopDestroyBlock\"", "method = \"continueDestroyBlock\""),
@@ -143,7 +181,7 @@ class DiagnosticSupportBoundaryTest {
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition.replace("ItemsRegistration.QUEEN", "ItemsRegistration.DRONE")));
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/OtherProbe.java"), transition));
         assertThrows(AssertionError.class, () -> assertBoundary(Path.of("gameplay/ColonyWorldProbe.java"), transition + "inventory.setStackInSlot(0, stack);"));
-        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("diagnostics/GameplayParticleMixin.java"), "@Inject(cancellable=true) void observe() { ci.cancel(); }"));
+        assertThrows(AssertionError.class, () -> assertBoundary(Path.of("mixin/diagnostics/GameplayParticleMixin.java"), "@Inject(cancellable=true) void observe() { ci.cancel(); }"));
     }
 
     @Test void weakenedDriverGatesAreRejected() throws Exception {
@@ -191,8 +229,8 @@ class DiagnosticSupportBoundaryTest {
                 assertBoundary(root.relativize(p), Files.readString(p));
             }
         }
-        String rotation=Files.readString(root.resolve("diagnostics/NonfiniteRotationMixin.java"));
-        String species=Files.readString(root.resolve("diagnostics/UntamedSpeciesObservationMixin.java"));
+        String rotation=Files.readString(root.resolve("mixin/diagnostics/NonfiniteRotationMixin.java"));
+        String species=Files.readString(root.resolve("mixin/diagnostics/UntamedSpeciesObservationMixin.java"));
         assertTrue(rotation.contains("cancellable = false"));assertTrue(species.contains("cancellable = false"));
         assertTrue(species.contains("require = 1"));assertTrue(species.contains("getNumberOfSpecies"));
         String plugin=Files.readString(root.resolve("diagnostics/NonfiniteRotationMixinPlugin.java"));

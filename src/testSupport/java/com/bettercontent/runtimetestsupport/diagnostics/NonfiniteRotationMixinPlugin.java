@@ -44,9 +44,9 @@ public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
             } catch (RuntimeException absentBinding) { return false; }
         }
         if ("net.minecraft.world.entity.Entity".equals(target))
-            return "com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixin".equals(mixin);
+            return "com.bettercontent.runtimetestsupport.mixin.diagnostics.NonfiniteRotationMixin".equals(mixin);
         if (!"untamedwilds.util.EntityUtils".equals(target)
-                || !"com.bettercontent.runtimetestsupport.diagnostics.UntamedSpeciesObservationMixin".equals(mixin)) return false;
+                || !"com.bettercontent.runtimetestsupport.mixin.diagnostics.UntamedSpeciesObservationMixin".equals(mixin)) return false;
         try {
             var loading = FMLLoader.getLoadingModList();
             boolean pinned = loading != null && loading.getMods().stream().anyMatch(mod ->
@@ -58,14 +58,14 @@ public final class NonfiniteRotationMixinPlugin implements IMixinConfigPlugin {
     public static boolean gameplayMixin(String target, String mixin, String mode, boolean requested) {
         if (!requested || !"debug".equals(mode)) return false;
         if ("net.minecraft.client.particle.ParticleEngine".equals(target))
-            return "com.bettercontent.runtimetestsupport.diagnostics.GameplayParticleMixin".equals(mixin);
+            return "com.bettercontent.runtimetestsupport.mixin.diagnostics.GameplayParticleMixin".equals(mixin);
         return "net.minecraft.client.multiplayer.MultiPlayerGameMode".equals(target)
-            && Set.of("com.bettercontent.runtimetestsupport.diagnostics.GameplayCutMixin",
-                "com.bettercontent.runtimetestsupport.diagnostics.GameplayCutDriverMixin").contains(mixin);
+            && Set.of("com.bettercontent.runtimetestsupport.mixin.diagnostics.GameplayCutMixin",
+                "com.bettercontent.runtimetestsupport.mixin.diagnostics.GameplayCutDriverMixin").contains(mixin);
     }
     public static boolean worldHooksMixin(String target, String mixin, String mode, boolean requested) {
         if (!requested || !"debug".equals(mode)) return false;
-        String owner="com.bettercontent.runtimetestsupport.gameplay.WorldHooksInteractionWorldProbe$";
+        String owner="com.bettercontent.runtimetestsupport.mixin.gameplay.";
         return switch (target) {
             case "net.minecraft.world.level.Explosion" -> (owner+"ExplosionRadiusAccess").equals(mixin);
             case "com.bettercontent.betterburiedencounters.worldgen.ExplosionRemovalTracker" -> (owner+"BuriedTrackerObservationMixin").equals(mixin);

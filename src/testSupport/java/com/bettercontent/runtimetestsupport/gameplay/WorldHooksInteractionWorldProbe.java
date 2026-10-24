@@ -44,11 +44,7 @@ import net.minecraftforge.event.level.ExplosionEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.bettercontent.runtimetestsupport.mixin.gameplay.ExplosionRadiusAccess;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -65,9 +61,8 @@ import java.util.UUID;
  * Client readiness/capture is separate. Finish certifies only the explicit assertions below, not
  * tree worldgen, automatic Malum bootstrap, actual restart or visual review.
  *
- * Integration MUST register gameplay.WorldHooksInteractionWorldProbe$ExplosionRadiusAccess in
- * the nonshipping mixin JSON. Also register BuriedTrackerObservationMixin and
- * BuriedSpawnerObservationMixin nested in this class; all three are read-only witnesses.
+ * Integration MUST register mixin.gameplay.ExplosionRadiusAccess in the nonshipping mixin JSON.
+ * Also register the four top-level observation mixins in mixin.gameplay; all five are read-only witnesses.
  * Accessor is read-only radius:F on native Explosion, not TNT NBT.
  */
 public final class WorldHooksInteractionWorldProbe {
@@ -87,51 +82,8 @@ public final class WorldHooksInteractionWorldProbe {
     private static boolean registered;
     private WorldHooksInteractionWorldProbe() {}
 
-    @Mixin(Explosion.class)
-    public interface ExplosionRadiusAccess {
-        @Accessor("radius") float worldHooks$radius();
-    }
-
-    /** Read-only witnesses, not product-handler drivers. Integration registers both nested classes. */
-    @Mixin(value = com.bettercontent.betterburiedencounters.worldgen.ExplosionRemovalTracker.class, remap = false)
-    public abstract static class BuriedTrackerObservationMixin {
-        @Inject(method = "watch", at = @At("RETURN"), require = 1)
-        private static void worldHooks$watched(ServerLevel level, BlockPos pos, ResourceLocation id, CallbackInfo ci) {
-            WorldHooksInteractionWorldProbe.recordNativeWatch(level, pos, id);
-        }
-        @Inject(method = "tick", at = @At("HEAD"), require = 1)
-        private static void worldHooks$beginTrackerTick(ServerLevel level, CallbackInfo ci) { WorldHooksInteractionWorldProbe.beginNativeTrackerTick(level); }
-        @Inject(method = "tick", at = @At("RETURN"), require = 1)
-        private static void worldHooks$endTrackerTick(ServerLevel level, CallbackInfo ci) { WorldHooksInteractionWorldProbe.endNativeTrackerTick(); }
-    }
-    @Mixin(value = com.vinlanx.explosionoverhaul.ServerExplosionHandler.class, remap = false)
-    public abstract static class NativeEngineObservationMixin {
-        @Inject(method = "handleExplosion", at = @At("HEAD"), require = 1)
-        private static void worldHooks$engineEntered(ServerLevel level, Explosion explosion, List<BlockPos> positions, CallbackInfo ci) {
-            WorldHooksInteractionWorldProbe.beginNativeEngine(level, explosion);
-        }
-        @Inject(method = "handleExplosion", at = @At("RETURN"), require = 1)
-        private static void worldHooks$engineReturned(ServerLevel level, Explosion explosion, List<BlockPos> positions, CallbackInfo ci) {
-            WorldHooksInteractionWorldProbe.recordNativeEngineReturn(level, explosion, positions);
-        }
-    }
-    @Mixin(value = com.vinlanx.explosionoverhaul.CraterDeformer.class, remap = false)
-    public abstract static class NativeCraterObservationMixin {
-        @Inject(method = "getCraterBlocks", at = @At("RETURN"), require = 1)
-        private static void worldHooks$craterReturned(ServerLevel level, Vec3 center, float power,
-                org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Set<BlockPos>> cir) {
-            WorldHooksInteractionWorldProbe.recordNativeCraterReturn(level, center, power, cir.getReturnValue());
-        }
-    }
-    @Mixin(value = com.bettercontent.betterburiedencounters.worldgen.MonsterSpawner.class, remap = false)
-    public abstract static class BuriedSpawnerObservationMixin {
-        @Inject(method = "spawn", at = @At("HEAD"), require = 1)
-        private static void worldHooks$nativeSpawnPath(Level level, BlockPos pos, ResourceLocation id, CallbackInfo ci) {
-            WorldHooksInteractionWorldProbe.recordNativeSpawnerCall(level, pos, id);
-        }
-    }
     // Public bridges are required: injected methods run in the product target, not in this
-    // enclosing Java nest. They never invoke/mutate product logic or construct Forge events.
+    // probe class. They never invoke/mutate product logic or construct Forge events.
     public static void recordNativeWatch(ServerLevel level, BlockPos pos, ResourceLocation id) {
         Session s = session; Blast b = s == null ? null : s.blast;
         if (b != null && controlsActive() && level == s.level && pos.equals(b.sealedPos)) {
