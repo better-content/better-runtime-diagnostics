@@ -162,7 +162,7 @@ mixin { add(testSupport, "better_runtime_test_support.refmap.json") }
 val testSupportJar by tasks.registering(Jar::class) {
     archiveFileName.set("better-runtime-test-support.jar")
     from(testSupport.output, testSupportPure.output)
-    doFirst { manifest.attributes["MixinConfigs"] = "better_runtime_test_support.mixins.json" }
+    doFirst { manifest.attributes["MixinConfigs"] = "better_runtime_test_support.mixins.json,better_runtime_offline_fixture.mixins.json" }
 }
 reobf { create("testSupportJar") { libraries.from(sourceSets.main.get().output, sourceSets.main.get().compileClasspath, testSupport.compileClasspath) } }
 testSupportJar { finalizedBy("reobfTestSupportJar") }
@@ -268,6 +268,63 @@ val verifyTestSupportIsolation by tasks.registering {
                 }, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
                 require(priority == 2000 && injections == 2 && cancellableTargets == listOf("stopDestroyBlock") &&
                     targets.toSet() == setOf("startDestroyBlock", "stopDestroyBlock") && targets.size == 2) { "Hold hook escaped its reviewed release/new-target boundaries" }
+            }
+            // The offline launcher adapter is not a gameplay observer. It has one exact authlib
+            // invocation redirect, is plugin/identity/empty-token bound, and cannot write native state.
+            val offlineConfig = jar.getInputStream(requireNotNull(jar.getEntry("better_runtime_offline_fixture.mixins.json"))).reader().use { com.google.gson.JsonParser.parseReader(it).asJsonObject }
+            require(offlineConfig.get("plugin").asString == "com.bettercontent.runtimetestsupport.fixture.OfflineClientMixinPlugin" &&
+                offlineConfig.getAsJsonArray("client").map { it.asString } == listOf("OfflineUserApiMixin") &&
+                !offlineConfig.has("mixins")) { "Unexpected offline fixture hooks" }
+            for (mapping in listOf(refmap.getAsJsonObject("mappings"), refmap.getAsJsonObject("data").getAsJsonObject("searge"))) {
+                require(mapping.getAsJsonObject("com/bettercontent/runtimetestsupport/mixin/fixture/OfflineUserApiMixin")
+                    .get("createUserApiService").asString == "Lnet/minecraft/client/Minecraft;m_193585_(Lcom/mojang/authlib/yggdrasil/YggdrasilAuthenticationService;Lnet/minecraft/client/main/GameConfig;)Lcom/mojang/authlib/minecraft/UserApiService;") { "Offline launcher redirect is not mapped to the pinned user API method" }
+            }
+            jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/mixin/fixture/OfflineUserApiMixin.class"))).use { input ->
+                val targets = mutableListOf<String>()
+                val redirects = mutableListOf<String>()
+                ClassReader(input).accept(object : ClassVisitor(Opcodes.ASM9) {
+                    override fun visitMethod(access: Int, method: String?, descriptor: String?, signature: String?, exceptions: Array<out String>?): MethodVisitor = object : MethodVisitor(Opcodes.ASM9) {
+                        override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor? =
+                            if (descriptor == "Lorg/spongepowered/asm/mixin/injection/Redirect;") object : AnnotationVisitor(Opcodes.ASM9) {
+                                override fun visitArray(name: String?): AnnotationVisitor? = if (name == "method") object : AnnotationVisitor(Opcodes.ASM9) {
+                                    override fun visit(name: String?, value: Any?) { redirects += value as String }
+                                } else null
+                                override fun visitAnnotation(name: String?, descriptor: String?): AnnotationVisitor? = if (name == "at") object : AnnotationVisitor(Opcodes.ASM9) {
+                                    override fun visit(name: String?, value: Any?) { if (name == "target") targets += value as String }
+                                } else null
+                            } else null
+                        override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
+                            require(opcode !in setOf(Opcodes.PUTFIELD, Opcodes.PUTSTATIC)) { "Offline adapter writes a field" }
+                        }
+                        override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) {
+                            require(!owner.startsWith("com/mojang/authlib/")) { "Offline adapter contacts authentication services" }
+                            if (owner.startsWith("net/minecraft/")) require(name in setOf("getProfileId", "m_240411_", "getName", "m_92546_")) { "Offline adapter calls native action $owner.$name" }
+                        }
+                    }
+                }, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+                require(redirects == listOf("createUserApiService") && targets == listOf("Lcom/mojang/authlib/yggdrasil/YggdrasilAuthenticationService;createUserApiService(Ljava/lang/String;)Lcom/mojang/authlib/minecraft/UserApiService;")) { "Offline adapter escaped its one authentication call" }
+            }
+            jar.getInputStream(requireNotNull(jar.getEntry("com/bettercontent/runtimetestsupport/fixture/DedicatedOnboardingProbe.class"))).use { input ->
+                var actions = 0
+                ClassReader(input).accept(object : ClassVisitor(Opcodes.ASM9) {
+                    override fun visitMethod(access: Int, method: String?, descriptor: String?, signature: String?, exceptions: Array<out String>?): MethodVisitor = object : MethodVisitor(Opcodes.ASM9) {
+                        override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
+                            require(opcode !in setOf(Opcodes.PUTFIELD, Opcodes.PUTSTATIC) || owner == "com/bettercontent/runtimetestsupport/fixture/DedicatedOnboardingProbe") { "Onboarding driver writes external state" }
+                        }
+                        override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) {
+                            if (owner == "com/bettercontent/betterspawns/client/ClientOnboardingActions") {
+                                require(name == "submitSpawnOnly" && descriptor == "(Lnet/minecraft/client/Minecraft;)Z") { "Unexpected onboarding action" }; actions++
+                            } else if (owner == "com/bettercontent/betterspawns/client/ClassSelectionState") require(name.startsWith("get")) { "Onboarding driver writes selection state" }
+                            if (owner.startsWith("net/minecraft/") || owner.startsWith("net/minecraftforge/"))
+                                require(name in setOf("getInstance", "m_91087_", "getConnection", "m_91403_", "hasSingleplayerServer", "m_91091_",
+                                    "getUUID", "m_20148_", "getGameProfile", "m_36316_", "getUser", "m_91094_", "getAccessToken", "m_92547_",
+                                    "hasChunk", "m_7232_", "chunkPosition", "m_146902_", "isSpectator", "m_5833_", "isCreative", "m_7500_",
+                                    "getPlayerMode", "m_105295_", "dimension", "m_46472_", "location", "m_135782_")) { "Onboarding driver calls native action $owner.$name" }
+                            require(name !in setOf("setGameMode", "m_143403_", "setPlayerMode", "m_105105_", "setSelected", "sendToServer", "setScreen")) { "Onboarding driver bypasses production onboarding" }
+                        }
+                    }
+                }, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+                require(actions == 1) { "Onboarding driver must submit exactly one production action" }
             }
             require(jar.entries().asSequence().filter { it.name.endsWith(".class") }.all { it.name.startsWith("com/bettercontent/runtimetestsupport/") }) { "Non-diagnostic class in support" }
         }
