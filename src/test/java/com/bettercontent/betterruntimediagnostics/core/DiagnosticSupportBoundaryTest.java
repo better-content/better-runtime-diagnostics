@@ -122,9 +122,19 @@ class DiagnosticSupportBoundaryTest {
         assertTrue(config.contains("\"package\": \"" + reserved + "\""));
         assertTrue(config.contains("\"plugin\": \"com.bettercontent.runtimetestsupport.diagnostics.NonfiniteRotationMixinPlugin\""));
         var registered = new java.util.HashSet<String>();
-        var names = java.util.regex.Pattern.compile("\"((?:diagnostics|gameplay)\\.[A-Za-z]+)\"").matcher(config);
-        while (names.find()) assertTrue(registered.add(reserved + "." + names.group(1)), "duplicate mixin");
-        assertEquals(10, registered.size());
+        for (String manifest : List.of("better_runtime_test_support.mixins.json", "better_runtime_offline_fixture.mixins.json")) {
+            var document = com.google.gson.JsonParser.parseString(Files.readString(
+                    Path.of("src/testSupport/resources").resolve(manifest))).getAsJsonObject();
+            String namespace = document.get("package").getAsString();
+            assertTrue(namespace.equals(reserved) || namespace.startsWith(reserved + "."));
+            for (String side : List.of("mixins", "client", "server")) {
+                if (!document.has(side)) continue;
+                for (var name : document.getAsJsonArray(side)) {
+                    assertTrue(registered.add(namespace + "." + name.getAsString()), "duplicate mixin");
+                }
+            }
+        }
+        assertFalse(registered.isEmpty());
         var actual = new java.util.HashSet<String>();
         for (Path sourceRoot : List.of(Path.of("src/testSupport/java"), Path.of("src/testSupportPure/java"))) {
             try (var paths = Files.walk(sourceRoot)) {

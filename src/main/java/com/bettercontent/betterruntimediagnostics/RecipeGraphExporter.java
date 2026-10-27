@@ -27,12 +27,9 @@ import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -137,16 +134,6 @@ public final class RecipeGraphExporter {
             JsonObject lighting = envelope(LIGHTING_SCHEMA, snapshotId, generatedAt, server);
             copyInto(lighting, LightingExporter.export());
 
-            writeAtomic(output.resolve("recipes.json"), graph);
-            writeAtomic(output.resolve("registries.json"), registries);
-            writeAtomic(output.resolve("tags.json"), tags);
-            writeAtomic(output.resolve("mods.json"), mods);
-            writeAtomic(output.resolve("loot.json"), loot);
-            writeAtomic(output.resolve("trades.json"), trades);
-            writeAtomic(output.resolve("worldgen.json"), worldgen);
-            writeAtomic(output.resolve("dimensions.json"), dimensions);
-            writeAtomic(output.resolve("lighting.json"), lighting);
-
             int runtimeEvidenceErrors = loot.get("error_count").getAsInt()
                     + trades.get("error_count").getAsInt()
                     + worldgen.get("error_count").getAsInt()
@@ -178,12 +165,10 @@ public final class RecipeGraphExporter {
             surfaces.add("dimensions", surface("live_server_levels_and_dynamic_registry_keys", dimensions.get("complete").getAsBoolean(), false));
             surfaces.add("lighting", surface("live_registry_and_loaded_mod_resource_scan", lighting.get("complete").getAsBoolean(), false));
             completion.add("surfaces", surfaces);
-            JsonArray files = new JsonArray();
-            for (String name : List.of("recipes.json", "registries.json", "tags.json", "mods.json", "loot.json", "trades.json", "worldgen.json", "dimensions.json", "lighting.json")) {
-                files.add(name);
-            }
-            completion.add("files", files);
-            writeAtomic(output.resolve("snapshot.json"), completion);
+            RuntimeSnapshotWriter.write(output, Map.of(
+                    "recipes.json", graph, "registries.json", registries, "tags.json", tags,
+                    "mods.json", mods, "loot.json", loot, "trades.json", trades,
+                    "worldgen.json", worldgen, "dimensions.json", dimensions, "lighting.json", lighting), completion);
             return new DumpResult(true, complete, snapshotId, recipes.size(), partial, errors, output.toString(), complete ? "ok" : "incomplete");
         } catch (Exception error) {
             return DumpResult.failure(error.getClass().getSimpleName() + ": " + error.getMessage(), output.toString());
@@ -537,16 +522,6 @@ public final class RecipeGraphExporter {
         out.addProperty("loader", "forge");
         out.addProperty("generated_by", RecipeGraphMod.MOD_ID + ":/runtimedata dump");
         return out;
-    }
-
-    private static void writeAtomic(Path target, JsonElement value) throws IOException {
-        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
-        Files.writeString(temporary, GSON.toJson(value) + "\n", StandardCharsets.UTF_8);
-        try {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException ignored) {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-        }
     }
 
     private static String describe(Exception error) {

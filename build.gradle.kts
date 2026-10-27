@@ -129,7 +129,17 @@ val testSupport = sourceSets.create("testSupport") {
     runtimeClasspath += output + compileClasspath
 }
 configurations[testSupport.compileOnlyConfigurationName].extendsFrom(configurations.compileOnly.get())
-dependencies {
+// ForgeGradle resolves every fg.deobf dependency through a shared __obfuscated configuration.
+// Do not make ordinary production/unit builds resolve the optional nonshipping supplement's SDKs.
+val withTestSupport = providers.gradleProperty("withTestSupport").map(String::toBoolean).getOrElse(false) ||
+    gradle.startParameter.taskNames.any { it.substringAfterLast(':').contains("testSupport", ignoreCase = true) }
+if (!withTestSupport) {
+    // ForgeGradle may wire source-set compilation into ordinary test/reobfuscation graphs.
+    // Keep the optional native sources/resources out of those graphs, not merely their SDKs.
+    testSupport.java.setSrcDirs(emptyList<String>())
+    testSupport.resources.setSrcDirs(emptyList<String>())
+}
+if (withTestSupport) dependencies {
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:untamed-wilds-au-naturel-1399279:7441092"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:the-deep-void-982999:8507128"))
     add(testSupport.compileOnlyConfigurationName, fg.deobf("curse.maven:starcatcher-1357603:7582886"))
@@ -158,15 +168,17 @@ dependencies {
     // because ForgeGradle cannot deobfuscate files(...) self-resolving dependencies.
     add(testSupport.annotationProcessorConfigurationName, "org.spongepowered:mixin:0.8.5:processor")
 }
-mixin { add(testSupport, "better_runtime_test_support.refmap.json") }
+if (withTestSupport) mixin { add(testSupport, "better_runtime_test_support.refmap.json") }
 val testSupportJar by tasks.registering(Jar::class) {
     archiveFileName.set("better-runtime-test-support.jar")
     from(testSupport.output, testSupportPure.output)
     doFirst { manifest.attributes["MixinConfigs"] = "better_runtime_test_support.mixins.json,better_runtime_offline_fixture.mixins.json" }
 }
-reobf { create("testSupportJar") { libraries.from(sourceSets.main.get().output, sourceSets.main.get().compileClasspath, testSupport.compileClasspath) } }
-testSupportJar { finalizedBy("reobfTestSupportJar") }
-tasks.named("reobfTestSupportJar") { mustRunAfter(stageRuntimeJar) }
+if (withTestSupport) {
+    reobf { create("testSupportJar") { libraries.from(sourceSets.main.get().output, sourceSets.main.get().compileClasspath, testSupport.compileClasspath) } }
+    testSupportJar { finalizedBy("reobfTestSupportJar") }
+    tasks.named("reobfTestSupportJar") { mustRunAfter(stageRuntimeJar) }
+}
 val verifyTestSupportIsolation by tasks.registering {
     dependsOn(tasks.named("reobfJar"), tasks.named("reobfTestSupportJar"))
     doLast {
@@ -330,7 +342,7 @@ val verifyTestSupportIsolation by tasks.registering {
         }
     }
 }
-tasks.named("check") { dependsOn(verifyTestSupportIsolation) }
+tasks.named("check") { if (withTestSupport) dependsOn(verifyTestSupportIsolation) }
 tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
 tasks.test {
     useJUnitPlatform()

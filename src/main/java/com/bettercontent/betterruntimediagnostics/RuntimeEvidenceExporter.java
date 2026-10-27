@@ -265,6 +265,20 @@ final class RuntimeEvidenceExporter {
                 .map(ResourceKey::location)
                 .toList());
 
+        List<String> registeredIds = List.of();
+        int registeredCount = 0;
+        boolean registeredAvailable = false;
+        try {
+            var registry = server.registryAccess().registryOrThrow(Registries.LEVEL_STEM);
+            registeredCount = registry.size();
+            registeredIds = registry.keySet().stream().map(ResourceLocation::toString).toList();
+            registeredAvailable = true;
+        } catch (Throwable error) {
+            issues.add(issue(Registries.LEVEL_STEM.location().toString(), error));
+        }
+        out.addProperty("registered_dimension_registry", Registries.LEVEL_STEM.location().toString());
+        DimensionRegistryEvidence.add(out, registeredIds, registeredCount, registeredAvailable, loaded, issues);
+
         ResourceLocation registryId = ResourceLocation.tryParse("creatingspace:rocket_accessible_dimension");
         ResourceKey registryKey = ResourceKey.createRegistryKey(registryId);
         JsonArray rocketAccessible = new JsonArray();
@@ -289,7 +303,7 @@ final class RuntimeEvidenceExporter {
         out.addProperty("rocket_accessible_dimension_count", rocketAccessible.size());
         out.addProperty("error_count", issues.size());
         out.addProperty("complete", issues.isEmpty());
-        out.addProperty("evidence_mode", "live_server_levels_and_dynamic_registry_keys");
+        out.addProperty("evidence_mode", "live_level_stem_registry_server_levels_and_dynamic_registry_keys");
         out.addProperty("limitation", "Registry membership proves configured destinations, not that terrain generation, arrival safety, or rocket travel succeeds.");
         out.add("loaded_dimensions", loaded);
         out.add("rocket_accessible_dimensions", rocketAccessible);
