@@ -23,6 +23,7 @@ final class DimensionRegistryEvidence {
         TreeSet<String> notRegistered = new TreeSet<>(loadedIds);
         notRegistered.removeAll(registered);
 
+        boolean allRegisteredLoaded = countMatches && notLoaded.isEmpty() && loaded.size() == loadedIds.size();
         if (!registryAvailable) {
             issues.add("live LevelStem registry unavailable; registered dimensions and equality are unproven");
         } else {
@@ -30,10 +31,9 @@ final class DimensionRegistryEvidence {
                 issues.add("LevelStem registry count mismatch: registry=" + registrySize
                         + " observed_keys=" + registeredIds.size() + " distinct_ids=" + registered.size());
             }
-            if (!setsMatch) {
-                issues.add("LevelStem registered/loaded dimension IDs differ: registered_not_loaded="
-                        + notLoaded + " loaded_not_registered=" + notRegistered
-                        + " loaded_count=" + loaded.size() + " distinct_loaded_ids=" + loadedIds.size());
+            if (!notLoaded.isEmpty() || loaded.size() != loadedIds.size()) {
+                issues.add("LevelStem registered dimension missing or duplicate live levels: registered_not_loaded="
+                        + notLoaded + " loaded_count=" + loaded.size() + " distinct_loaded_ids=" + loadedIds.size());
             }
         }
         out.add("registered_dimensions", array(registered));
@@ -41,8 +41,12 @@ final class DimensionRegistryEvidence {
         out.addProperty("registered_dimension_registry_available", registryAvailable);
         out.addProperty("registered_dimension_count_matches_ids", countMatches);
         out.addProperty("registered_loaded_dimensions_match", setsMatch);
+        out.addProperty("registered_dimensions_loaded", allRegisteredLoaded);
         out.add("registered_not_loaded_dimensions", array(notLoaded));
+        // Dynamic live levels (such as AE2 spatial storage) need arrival/TPS proof too;
+        // they must not be misrepresented as LevelStem registry members.
         out.add("loaded_not_registered_dimensions", array(notRegistered));
+        out.add("dynamic_loaded_dimensions", array(notRegistered));
     }
 
     private static JsonArray array(Collection<String> ids) {

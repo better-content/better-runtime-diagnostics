@@ -33,16 +33,19 @@ final class DimensionRegistryEvidenceTest {
     @Test void registeredButUnloadedDimensionIsAnExplicitError() {
         compare(List.of("example:home", "other:unloaded"), 2, true, "[\"example:home\"]");
         assertFalse(flag("registered_loaded_dimensions_match"));
+        assertFalse(flag("registered_dimensions_loaded"));
         assertEquals("[\"other:unloaded\"]", result.getAsJsonArray("registered_not_loaded_dimensions").toString());
         assertEquals(1, issues.size());
         assertTrue(issues.toString().contains("other:unloaded"));
     }
 
-    @Test void loadedButUnregisteredDimensionIsAnExplicitError() {
-        compare(List.of("example:home"), 1, true, "[\"other:unexpected\",\"example:home\"]");
+    @Test void dynamicallyLoadedDimensionIsRecordedForFullLiveCoverageWithoutFalsifyingRegistryEquality() {
+        compare(List.of("example:home"), 1, true, "[\"other:dynamic\",\"example:home\"]");
         assertFalse(flag("registered_loaded_dimensions_match"));
-        assertEquals("[\"other:unexpected\"]", result.getAsJsonArray("loaded_not_registered_dimensions").toString());
-        assertEquals(1, issues.size());
+        assertTrue(flag("registered_dimensions_loaded"));
+        assertEquals("[\"other:dynamic\"]", result.getAsJsonArray("loaded_not_registered_dimensions").toString());
+        assertEquals("[\"other:dynamic\"]", result.getAsJsonArray("dynamic_loaded_dimensions").toString());
+        assertTrue(issues.isEmpty());
     }
 
     @Test void equalCountsDoNotProveEqualMembership() {
