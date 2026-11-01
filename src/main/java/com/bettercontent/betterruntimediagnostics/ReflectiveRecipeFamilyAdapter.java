@@ -71,7 +71,13 @@ final class ReflectiveRecipeFamilyAdapter {
                 || classOrSuperclassNamed(recipe.getClass(),
                         "slimeknights.tconstruct.library.recipe.melting.MeltingRecipe")
                 || classOrSuperclassNamed(recipe.getClass(),
-                        "slimeknights.tconstruct.library.recipe.casting.ItemCastingRecipe");
+                        "slimeknights.tconstruct.library.recipe.casting.ItemCastingRecipe")
+                || classOrSuperclassNamed(recipe.getClass(),
+                        "com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.ChoppingBoardRecipe")
+                || classOrSuperclassNamed(recipe.getClass(),
+                        "vectorwing.farmersdelight.common.crafting.CuttingBoardRecipe")
+                || classOrSuperclassNamed(recipe.getClass(),
+                        "com.chefmooon.ubesdelight.common.crafting.BakingMatRecipe");
         if (!exactFamily) {
             List<Method> methods = publicMethods(recipe.getClass());
             methods.sort(Comparator.comparing(Method::toGenericString));
@@ -416,6 +422,15 @@ final class ReflectiveRecipeFamilyAdapter {
             } else if (classOrSuperclassNamed(recipe.getClass(),
                     "slimeknights.tconstruct.library.recipe.casting.ItemCastingRecipe")) {
                 tconstructItemCasting(recipe);
+            } else if (classOrSuperclassNamed(recipe.getClass(),
+                    "com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.ChoppingBoardRecipe")) {
+                kaleidoscopeChopping(recipe);
+            } else if (classOrSuperclassNamed(recipe.getClass(),
+                    "vectorwing.farmersdelight.common.crafting.CuttingBoardRecipe")) {
+                rollableToolRecipe(recipe, "native_cutting", "CuttingBoardRecipe", "getStack", "getChance");
+            } else if (classOrSuperclassNamed(recipe.getClass(),
+                    "com.chefmooon.ubesdelight.common.crafting.BakingMatRecipe")) {
+                rollableToolRecipe(recipe, "native_baking_mat", "BakingMatRecipe", "stack", "chance");
             } else if (isBloodMagicPotionStateMutation(className)) {
                 bloodMagicFlask(recipe, className);
             } else if (className.equals("slimeknights.tconstruct.library.recipe.melting.MaterialMeltingRecipe")) {
@@ -520,6 +535,49 @@ final class ReflectiveRecipeFamilyAdapter {
                 collectField(recipe, "reagent", Direction.INPUT);
                 collectField(recipe, "enchantment", Direction.OUTPUT);
             }
+        }
+
+        private void rollableToolRecipe(Object recipe, String operationName, String family, String stackAccessor, String chanceAccessor) {
+            authoritativeOutputs = true;
+            operation(operationName, family);
+            Object value = invokeNoArg(recipe, "getRollableResults");
+            if (value instanceof Collection<?> results && !results.isEmpty()) {
+                int index = 0;
+                for (Object result : results) {
+                    String source = "getRollableResults()[" + index++ + "]";
+                    Object stackValue = invokeNoArg(result, stackAccessor);
+                    Object chanceValue = invokeNoArg(result, chanceAccessor);
+                    if (stackValue instanceof ItemStack stack && !stack.isEmpty() && chanceValue instanceof Number chance) {
+                        JsonObject edge = itemEdge(stack, source);
+                        addChance(edge, chance.doubleValue());
+                        addEdge(Direction.OUTPUT, edge);
+                        addOutputGroup(edge, source);
+                        evidence("edge", source);
+                    } else incomplete(source);
+                }
+            } else incomplete("getRollableResults()");
+            collectAccessor(recipe, "getTool", Direction.CATALYST);
+        }
+
+        private void kaleidoscopeChopping(Object recipe) {
+            // getResultItem only exposes the first stack. The complete native
+            // deterministic vector (including bones and other by-products) is authoritative.
+            authoritativeOutputs = true;
+            operation("native_chopping", "ChoppingBoardRecipe");
+            Object value = invokeNoArg(recipe, "getResults");
+            if (value instanceof Collection<?> results && !results.isEmpty()) {
+                int index = 0;
+                for (Object result : results) {
+                    String source = "getResults()[" + index++ + "]";
+                    if (result instanceof ItemStack stack && !stack.isEmpty()) {
+                        JsonObject edge = itemEdge(stack, source);
+                        addEdge(Direction.OUTPUT, edge);
+                        addOutputGroup(edge, source);
+                        evidence("edge", source);
+                    } else incomplete(source);
+                }
+            } else incomplete("getResults()");
+            collectNumberAccessor(recipe, "getCutCount", "cut_count");
         }
 
         private void createProcessingRecipe(Object recipe) {

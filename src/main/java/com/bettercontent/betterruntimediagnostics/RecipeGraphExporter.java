@@ -30,6 +30,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -53,6 +54,29 @@ public final class RecipeGraphExporter {
     private static final String LIGHTING_SCHEMA = "bc.lighting.v1";
 
     private RecipeGraphExporter() {}
+
+    /** Server-only registry query; deliberately does not traverse recipes or run the full snapshot. */
+    public static Path dumpEdible(MinecraftServer server) throws java.io.IOException {
+        Path output = server.getServerDirectory().toPath().resolve("generated/runtime-dumps/edible-items.json").normalize();
+        String generatedAt = Instant.now().toString();
+        JsonObject document = envelope("bc.edible_items.v1",
+                shortHash(generatedAt + "\n" + server.getWorldData().getLevelName()), generatedAt, server);
+        JsonObject items = new JsonObject();
+        BuiltInRegistries.ITEM.keySet().stream().sorted(Comparator.comparing(ResourceLocation::toString)).forEach(key -> {
+            Item item = BuiltInRegistries.ITEM.get(key);
+            FoodProperties food = item.getFoodProperties(new ItemStack(item), null);
+            if (food != null) items.add(key.toString(), foodPropertiesRow(food));
+        });
+        document.add("items", items);
+        document.addProperty("item_count", items.size());
+        document.addProperty("evidence_mode", "live_registered_item_default_stack_food_properties");
+        document.addProperty("limitation", "Default-stack food properties do not cover every contextual food variant or drink.");
+        Files.createDirectories(output.getParent());
+        Path temporary = output.resolveSibling(output.getFileName() + ".tmp");
+        Files.writeString(temporary, GSON.toJson(document) + "\n", StandardCharsets.UTF_8);
+        Files.move(temporary, output, StandardCopyOption.REPLACE_EXISTING);
+        return output;
+    }
 
     public static DumpResult dump(MinecraftServer server) {
         Path output = server.getServerDirectory().toPath().resolve("generated/runtime-dumps").normalize();

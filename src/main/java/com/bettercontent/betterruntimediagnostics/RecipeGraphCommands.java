@@ -45,6 +45,26 @@ public final class RecipeGraphCommands {
                     context.getSource().sendFailure(Component.literal("Recipe graph dump failed: " + result.message()));
                     return 0;
                 }))
+                .then(Commands.literal("edible").executes(context -> {
+                    try {
+                        var output = RecipeGraphExporter.dumpEdible(context.getSource().getServer());
+                        context.getSource().sendSuccess(() -> Component.literal("Edible registry -> " + output), true);
+                        return 1;
+                    } catch (Exception failure) {
+                        context.getSource().sendFailure(Component.literal("Edible registry failed: " + failure));
+                        return 0;
+                    }
+                }))
+                .then(Commands.literal("recipe-policy").executes(context -> {
+                    try {
+                        var output = RecipePolicyVerifier.verify(context.getSource().getServer());
+                        context.getSource().sendSuccess(() -> Component.literal("Recipe policy verification -> " + output), true);
+                        return 1;
+                    } catch (Exception failure) {
+                        context.getSource().sendFailure(Component.literal("Recipe policy verification failed: " + failure));
+                        return 0;
+                    }
+                }))
                 .then(Commands.literal("combat").executes(context -> {
                     boolean observing = PlaytestDiagnostics.LOG.enabled("export");
                     long started = observing ? System.nanoTime() : 0;

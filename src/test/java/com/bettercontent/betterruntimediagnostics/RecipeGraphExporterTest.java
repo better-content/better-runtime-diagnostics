@@ -77,6 +77,33 @@ final class RecipeGraphExporterTest {
     }
 
     @Test
+    void kaleidoscopeChoppingUsesTheWholeNativeOutputVector() throws Exception {
+        String adapter = Files.readString(Path.of(
+                "src/main/java/com/bettercontent/betterruntimediagnostics/ReflectiveRecipeFamilyAdapter.java"));
+        assertTrue(adapter.contains("com.github.ysbbbbbb.kaleidoscopecookery.crafting.recipe.ChoppingBoardRecipe"));
+        String method = adapter.substring(adapter.indexOf("private void kaleidoscopeChopping"),
+                adapter.indexOf("private void createProcessingRecipe"));
+        assertTrue(method.contains("authoritativeOutputs = true"));
+        assertTrue(method.contains("invokeNoArg(recipe, \"getResults\")"));
+        assertTrue(method.contains("addOutputGroup(edge, source)"));
+        assertTrue(method.contains("incomplete(\"getResults()\")"));
+    }
+
+    @Test
+    void nativeToolFamiliesKeepChanceResultsAndTheirTool() throws Exception {
+        String adapter = Files.readString(Path.of(
+                "src/main/java/com/bettercontent/betterruntimediagnostics/ReflectiveRecipeFamilyAdapter.java"));
+        assertTrue(adapter.contains("vectorwing.farmersdelight.common.crafting.CuttingBoardRecipe"));
+        assertTrue(adapter.contains("com.chefmooon.ubesdelight.common.crafting.BakingMatRecipe"));
+        String method = adapter.substring(adapter.indexOf("private void rollableToolRecipe"),
+                adapter.indexOf("private void kaleidoscopeChopping"));
+        assertTrue(method.contains("authoritativeOutputs = true"));
+        assertTrue(method.contains("invokeNoArg(recipe, \"getRollableResults\")"));
+        assertTrue(method.contains("addChance(edge, chance.doubleValue())"));
+        assertTrue(method.contains("collectAccessor(recipe, \"getTool\", Direction.CATALYST)"));
+    }
+
+    @Test
     void optionalRecipeFamiliesAreRecognizedThroughTheirSuperclass() {
         assertTrue(ReflectiveRecipeFamilyAdapter.classOrSuperclassNamed(
                 FamilyChild.class, FamilyBase.class.getName()));
