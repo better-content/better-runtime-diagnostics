@@ -9,7 +9,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class FreshWorldInputTest {
     @Test void refusesPreseededEscapedSymlinkAndNonDebugInputsBeforeNativeCreation() throws Exception {
-        Path parent = Path.of("build/test-fixtures").toAbsolutePath();
+        // The build directory may be redirected; the positive fixture must have ordinary ancestry.
+        Path parent = Path.of("build").toRealPath().resolve("test-fixtures");
         Files.createDirectories(parent);
         Path fixture = Files.createTempDirectory(parent, "fresh-contract-");
         try {

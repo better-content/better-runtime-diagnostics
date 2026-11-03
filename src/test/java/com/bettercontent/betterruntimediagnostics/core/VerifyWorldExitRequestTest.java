@@ -15,7 +15,8 @@ class VerifyWorldExitRequestTest {
     private static final String PREFIX = "bc.pack_test.verify_exit.";
 
     private static final class Fixture implements AutoCloseable {
-        final Path owner = Path.of("build/verify-exit-test", UUID.randomUUID().toString()).toAbsolutePath();
+        // Resolve the redirected build base, not the deliberate symlinks in negative controls.
+        final Path owner = Path.of("build").toRealPath().resolve("verify-exit-test").resolve(UUID.randomUUID().toString());
         final Path root = owner.resolve(RUN + "/singleplayer/fixture");
         final Path world = root.resolve("client-6/saves/DebugWorld"), dir = root.resolve("world-lifecycle");
         final VerifyWorldExitRequest.Binding binding;
