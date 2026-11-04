@@ -10,3 +10,5 @@ logs/
 *.log
 .DS_Store
 Thumbs.db
+# Locally cached binaries; Packwiz metadata/hashes remain tracked separately.
+/gradle/wrapper/gradle-wrapper.jar
