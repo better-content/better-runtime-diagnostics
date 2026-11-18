@@ -88,6 +88,9 @@ repositories {
 dependencies {
     minecraft("net.minecraftforge:forge:${property("minecraft_version")}-${property("forge_version")}")
     compileOnly(fg.deobf("curse.maven:architectury-api-419699:5137938"))
+    // Display-only public API; optional provider is not bundled in the runtime JAR.
+    compileOnly(fg.deobf("curse.maven:pneumaticcraft-repressurized-281849:7307654"))
+    testImplementation(fg.deobf("curse.maven:pneumaticcraft-repressurized-281849:7307654"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 

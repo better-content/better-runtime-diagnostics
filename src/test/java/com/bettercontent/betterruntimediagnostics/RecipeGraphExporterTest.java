@@ -41,7 +41,6 @@ final class RecipeGraphExporterTest {
         Set<String> allowed = Set.of(
                 "com/bettercontent/betterruntimediagnostics/ReflectiveFabricBiomeModifierAdapter.java",
                 "com/bettercontent/betterruntimediagnostics/ReflectiveEmiReadinessAdapter.java",
-                "com/bettercontent/betterruntimediagnostics/ReflectivePneumaticRecipeAdapter.java",
                 "com/bettercontent/betterruntimediagnostics/ReflectiveRecipeFamilyAdapter.java");
         String reflectionSyntax = "java.lang.reflect|\\.getDeclared(?:Field|Fields|Method|Methods|Constructor|Constructors)\\("
                 + "|\\.getMethod\\(|\\.getMethods\\(|trySetAccessible\\(|setAccessible\\(|\\.invoke\\(";
@@ -129,20 +128,20 @@ final class RecipeGraphExporterTest {
     }
 
     @Test
-    void pneumaticFamilyAccessorDiscoveryIsCachedByConcreteClass() {
-        int before = ReflectivePneumaticRecipeAdapter.resolutionCountForTests();
-        FakePneumaticRecipe recipe = new FakePneumaticRecipe();
-
-        assertTrue(ReflectivePneumaticRecipeAdapter.supports(recipe, "pneumaticcraft:pressure_chamber"));
-        assertTrue(ReflectivePneumaticRecipeAdapter.supports(recipe, "pneumaticcraft:pressure_chamber"));
-        assertEquals(before + 1, ReflectivePneumaticRecipeAdapter.resolutionCountForTests());
-        assertFalse(ReflectivePneumaticRecipeAdapter.supports(recipe, "minecraft:crafting"));
-    }
-
-    public static final class FakePneumaticRecipe {
-        public List<Object> getInputsForDisplay() { return List.of(); }
-        public List<Object> getResultsForDisplay() { return List.of(); }
-        public float getCraftingPressureForDisplay() { return 2.5F; }
+    void pneumaticDisplayAdapterRequiresTheActualPublicRecipeType() throws Exception {
+        String adapter = Files.readString(Path.of(
+                "src/main/java/com/bettercontent/betterruntimediagnostics/PneumaticRecipeAdapter.java"));
+        String exporter = Files.readString(Path.of(
+                "src/main/java/com/bettercontent/betterruntimediagnostics/RecipeGraphExporter.java"));
+        assertTrue(adapter.contains("recipe instanceof PressureChamberRecipe"));
+        assertTrue(adapter.contains("getInputsForDisplay()"));
+        assertTrue(adapter.contains("getResultsForDisplay()"));
+        assertTrue(adapter.contains("getCraftingPressureForDisplay()"));
+        assertFalse(adapter.contains("java.lang.reflect"));
+        assertFalse(adapter.contains(".getMethod("));
+        assertFalse(adapter.contains(".invoke("));
+        assertTrue(exporter.contains("PneumaticRecipeAdapter.supports(recipe, type)"));
+        assertFalse(exporter.contains("ReflectivePneumaticRecipeAdapter"));
     }
 
     @Test

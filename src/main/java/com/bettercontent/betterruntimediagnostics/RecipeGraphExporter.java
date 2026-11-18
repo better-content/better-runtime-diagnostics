@@ -242,9 +242,12 @@ public final class RecipeGraphExporter {
         String adapter = null;
         try {
             List<Ingredient> ingredients = recipe.getIngredients();
-            if (ReflectivePneumaticRecipeAdapter.supports(recipe, type)) {
-                ingredients = ReflectivePneumaticRecipeAdapter.inputs(recipe);
+            if (PneumaticRecipeAdapter.supports(recipe, type)) {
+                ingredients = PneumaticRecipeAdapter.inputs(recipe);
                 adapter = "pneumaticcraft:pressure_chamber_display_api";
+            } else if ("pneumaticcraft:pressure_chamber".equals(type)) {
+                issues.add("pressure_chamber: public display API unavailable for " + recipe.getClass().getName());
+                partial = true;
             }
             int slot = 0;
             for (Ingredient ingredient : ingredients) {
@@ -293,7 +296,7 @@ public final class RecipeGraphExporter {
         try {
             if (adapter != null) {
                 int slot = 0;
-                for (List<ItemStack> alternatives : ReflectivePneumaticRecipeAdapter.outputs(recipe)) {
+                for (List<ItemStack> alternatives : PneumaticRecipeAdapter.outputs(recipe)) {
                     JsonObject group = new JsonObject();
                     group.addProperty("slot", slot++);
                     JsonArray rows = new JsonArray();
@@ -337,7 +340,7 @@ public final class RecipeGraphExporter {
         requirements.add("pressure", null);
         if (adapter != null) {
             try {
-                requirements.addProperty("pressure", ReflectivePneumaticRecipeAdapter.pressure(recipe));
+                requirements.addProperty("pressure", PneumaticRecipeAdapter.pressure(recipe));
             } catch (Exception error) {
                 issues.add("pressure: " + describe(error));
                 partial = true;
